@@ -9,8 +9,34 @@ from src.core.risk import DrawdownMonitor
 from src.core.scorer import rank_etfs
 from src.data.market_data import fetch_prices
 
-app = typer.Typer(name="traderbot", help="ETF Trading Bot")
+app = typer.Typer(name="traderbot", help="ETF Trading Bot", invoke_without_command=True)
 logger = logging.getLogger(__name__)
+
+
+@app.callback()
+def main(ctx: typer.Context):
+    """ETF Trading Bot — interactive menu when run without arguments."""
+    if ctx.invoked_subcommand is not None:
+        return
+
+    typer.echo("\n  TraderBot")
+    typer.echo("  " + "─" * 20)
+    typer.echo("  1. run    — execute daily trading cycle")
+    typer.echo("  2. serve  — start web dashboard")
+    typer.echo("  3. status — show portfolio status")
+    typer.echo()
+
+    choice = typer.prompt("  Choose [1/2/3]").strip()
+
+    if choice in ("1", "run"):
+        ctx.invoke(run)
+    elif choice in ("2", "serve"):
+        ctx.invoke(serve)
+    elif choice in ("3", "status"):
+        ctx.invoke(status)
+    else:
+        typer.echo("Invalid choice.", err=True)
+        raise typer.Exit(1)
 
 
 @app.command()
