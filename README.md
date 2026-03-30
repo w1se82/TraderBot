@@ -36,11 +36,15 @@ The top 3 ETFs are held in equal weight (~33% per position). Rebalancing only oc
 
 ## AI Analysis
 
-The web dashboard includes an AI-powered analysis step driven by the **Claude Code CLI** (`claude`). After scoring the ETFs and generating orders, the dashboard streams a qualitative explanation of:
+The web dashboard includes an AI-powered analysis step driven by the **Claude Code CLI** (`claude`). After scoring the ETFs and generating orders, Claude receives a rich context and streams a qualitative explanation covering:
 
-- What the factor combination reveals about the current market climate
-- Why the selected ETFs are of interest based on their profile
-- Risks or points of attention for the period ahead
+- What the **macro environment** implies for risk appetite (VIX, 10Y yield, DXY, SPY 1-month return)
+- Why the **selected ETFs score highest** versus the rejected ones, referencing raw values (RSI, annualised vol%, 1m/3m/6m returns)
+- **Current news** searched live via Claude's WebSearch tool (Fed signals, sector developments, geopolitical risk)
+- **Risk state** context: current drawdown and circuit breaker status
+- Any risks or points of attention for the period ahead
+
+The full ranking of all ETFs (selected and rejected) is passed to the prompt so Claude can explain the relative comparison explicitly.
 
 The Claude CLI must be installed and available in `PATH`. No `ANTHROPIC_API_KEY` is required in `.env` — Claude Code authenticates independently.
 
@@ -89,6 +93,13 @@ python main.py status
 python main.py serve    # dashboard at http://localhost:8000
 ```
 
+### Web Dashboard
+
+Open `http://localhost:8000` after starting `serve`. The dashboard offers two actions:
+
+- **Run Analysis** — scores all ETFs, fetches macro indicators, and streams an AI-powered analysis with live market news. Does **not** execute trades.
+- **Execute Trading Cycle** — runs the full cycle (circuit breaker check → scoring → rebalance → order execution) and streams a live order feed. Confirms before proceeding.
+
 ## Configuration
 
 All settings are in `config/settings.yaml`:
@@ -108,17 +119,17 @@ TraderBot/
 │   ├── config.py              # YAML + env var loading
 │   ├── core/
 │   │   ├── factors.py         # Momentum, vol, trend, RSI
-│   │   ├── scorer.py          # Factor combination and ranking
+│   │   ├── scorer.py          # Factor combination, ranking, raw values
 │   │   ├── portfolio.py       # Position sizing and orders
 │   │   └── risk.py            # Drawdown circuit breaker
 │   ├── data/
-│   │   └── market_data.py     # yfinance wrapper
+│   │   └── market_data.py     # yfinance wrapper + macro snapshot (VIX, yields, DXY)
 │   ├── broker/
-│   │   └── alpaca_broker.py   # Alpaca API wrapper
+│   │   └── alpaca_broker.py   # Alpaca API wrapper + PDT protection
 │   ├── ai/
-│   │   └── explainer.py       # Claude prompt builder
+│   │   └── explainer.py       # Claude prompt builder (macro + full ranking + raw values)
 │   ├── api/
-│   │   ├── __init__.py        # FastAPI app (status + SSE analyze)
+│   │   ├── __init__.py        # FastAPI: status, analyze (SSE), run (SSE)
 │   │   └── static/
 │   │       └── index.html     # Web dashboard
 │   └── cli/
