@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="nl">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -20,7 +20,7 @@
       <div class="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center text-gray-950 font-bold text-sm">TB</div>
       <h1 class="text-xl font-semibold tracking-tight">TraderBot Dashboard</h1>
     </div>
-    <div id="mode-badge" class="text-xs px-3 py-1 rounded-full bg-gray-800 text-gray-400">Laden...</div>
+    <div id="mode-badge" class="text-xs px-3 py-1 rounded-full bg-gray-800 text-gray-400">Loading...</div>
   </div>
 
   <!-- Status Cards -->
@@ -30,22 +30,22 @@
     <div class="bg-gray-900 rounded-xl p-5 border border-gray-800">
       <h2 class="text-xs font-medium text-gray-500 uppercase tracking-widest mb-4">Account</h2>
       <div id="account-content">
-        <div class="text-gray-600 text-sm">Laden...</div>
+        <div class="text-gray-600 text-sm">Loading...</div>
       </div>
     </div>
 
     <!-- Risk Card -->
     <div class="bg-gray-900 rounded-xl p-5 border border-gray-800">
-      <h2 class="text-xs font-medium text-gray-500 uppercase tracking-widest mb-4">Risico Status</h2>
+      <h2 class="text-xs font-medium text-gray-500 uppercase tracking-widest mb-4">Risk Status</h2>
       <div id="risk-content">
-        <div class="text-gray-600 text-sm">Laden...</div>
+        <div class="text-gray-600 text-sm">Loading...</div>
       </div>
     </div>
   </div>
 
   <!-- Positions Card -->
   <div id="positions-card" class="bg-gray-900 rounded-xl p-5 border border-gray-800 mb-6 hidden">
-    <h2 class="text-xs font-medium text-gray-500 uppercase tracking-widest mb-4">Huidige Posities</h2>
+    <h2 class="text-xs font-medium text-gray-500 uppercase tracking-widest mb-4">Current Positions</h2>
     <div id="positions-content"></div>
   </div>
 
@@ -56,7 +56,7 @@
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
       </svg>
-      Run Analyse
+      Run Analysis
     </button>
   </div>
 
@@ -83,7 +83,7 @@
               <th class="text-left pb-3 pr-4">ETF</th>
               <th class="text-left pb-3 pr-4 min-w-24">Score</th>
               <th class="text-left pb-3 pr-4 min-w-28">Momentum</th>
-              <th class="text-left pb-3 pr-4 min-w-28">Volatiliteit</th>
+              <th class="text-left pb-3 pr-4 min-w-28">Volatility</th>
               <th class="text-left pb-3 pr-4 min-w-28">Trend</th>
               <th class="text-left pb-3 min-w-28">Mean Rev.</th>
             </tr>
@@ -97,7 +97,7 @@
   <!-- Orders -->
   <div id="orders-section" class="hidden mb-6">
     <div class="bg-gray-900 rounded-xl p-5 border border-gray-800">
-      <h2 class="text-xs font-medium text-gray-500 uppercase tracking-widest mb-4">Gegenereerde Orders</h2>
+      <h2 class="text-xs font-medium text-gray-500 uppercase tracking-widest mb-4">Generated Orders</h2>
       <div id="orders-content"></div>
     </div>
   </div>
@@ -107,7 +107,7 @@
     <div class="bg-gray-900 rounded-xl p-5 border border-gray-800">
       <div class="flex items-center gap-2 mb-4">
         <div class="w-5 h-5 bg-violet-600 rounded flex items-center justify-center text-white" style="font-size: 10px; font-weight: bold;">AI</div>
-        <h2 class="text-xs font-medium text-gray-500 uppercase tracking-widest">Claude Analyse</h2>
+        <h2 class="text-xs font-medium text-gray-500 uppercase tracking-widest">Claude Analysis</h2>
       </div>
       <div id="ai-text" class="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap cursor"></div>
     </div>
@@ -170,15 +170,15 @@
           <div class="space-y-2">
             <div class="flex justify-between">
               <span class="text-gray-500 text-sm">Budget</span>
-              <span class="font-semibold text-lg">$${data.budget.toLocaleString('nl-NL', {minimumFractionDigits: 2})}</span>
+              <span class="font-semibold text-lg">$${data.budget.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
             </div>
             <div class="flex justify-between">
               <span class="text-gray-500 text-sm">Cash</span>
-              <span class="text-gray-300">$${data.cash.toLocaleString('nl-NL', {minimumFractionDigits: 2})}</span>
+              <span class="text-gray-300">$${data.cash.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
             </div>
             <div class="flex justify-between">
-              <span class="text-gray-500 text-sm">Max kapitaal</span>
-              <span class="text-gray-400">$${data.max_capital.toLocaleString('nl-NL', {minimumFractionDigits: 2})}</span>
+              <span class="text-gray-500 text-sm">Max capital</span>
+              <span class="text-gray-400">$${data.max_capital.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
             </div>
           </div>`;
 
@@ -189,8 +189,8 @@
           ? 'bg-yellow-500' : 'bg-emerald-500';
         const drawdownPct = Math.min((r.current_drawdown / r.max_drawdown_threshold) * 100, 100);
         const cbStatus = r.circuit_breaker_active
-          ? '<span class="text-red-400 font-medium">⛔ ACTIEF</span>'
-          : '<span class="text-emerald-400 font-medium">✓ Inactief</span>';
+          ? '<span class="text-red-400 font-medium">⛔ ACTIVE</span>'
+          : '<span class="text-emerald-400 font-medium">✓ Inactive</span>';
 
         document.getElementById('risk-content').innerHTML = `
           <div class="space-y-3">
@@ -208,8 +208,8 @@
               </div>
             </div>
             <div class="flex justify-between">
-              <span class="text-gray-500 text-sm">Piek equity</span>
-              <span class="text-gray-300">$${r.peak_equity.toLocaleString('nl-NL', {minimumFractionDigits: 2})}</span>
+              <span class="text-gray-500 text-sm">Peak equity</span>
+              <span class="text-gray-300">$${r.peak_equity.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
             </div>
           </div>`;
 
@@ -218,7 +218,7 @@
           const rows = data.positions.map(p => `
             <div class="flex items-center justify-between py-2 border-b border-gray-800 last:border-0">
               <span class="font-medium">${p.ticker}</span>
-              <span class="text-gray-400 text-sm">$${p.market_value.toLocaleString('nl-NL', {minimumFractionDigits: 2})}</span>
+              <span class="text-gray-400 text-sm">$${p.market_value.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
               <div class="flex items-center gap-2 w-32">
                 <div class="flex-1 bg-gray-800 rounded-full h-1.5">
                   <div class="bg-blue-500 h-1.5 rounded-full" style="width:${p.weight}%"></div>
@@ -232,7 +232,7 @@
 
       } catch (err) {
         document.getElementById('account-content').innerHTML =
-          `<p class="text-red-400 text-sm">Kan niet verbinden met server</p>`;
+          `<p class="text-red-400 text-sm">Cannot connect to server</p>`;
       }
     }
 
@@ -250,7 +250,7 @@
       document.getElementById('ai-text').textContent = '';
       document.getElementById('error-msg').classList.add('hidden');
 
-      showStatus('Analyse starten...');
+      showStatus('Starting analysis...');
 
       const es = new EventSource('/api/analyze');
       let aiStarted = false;
@@ -289,7 +289,7 @@
       };
 
       es.onerror = () => {
-        showError('Verbinding verbroken. Probeer opnieuw.');
+        showError('Connection lost. Please try again.');
         es.close();
         resetBtn();
       };
@@ -345,7 +345,7 @@
         document.getElementById('orders-section').classList.remove('hidden');
       } else {
         document.getElementById('orders-content').innerHTML =
-          '<p class="text-gray-500 text-sm">Geen orders nodig — posities zijn al in balans</p>';
+          '<p class="text-gray-500 text-sm">No orders needed — positions are already balanced</p>';
         document.getElementById('orders-section').classList.remove('hidden');
       }
     }

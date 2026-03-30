@@ -11,7 +11,7 @@ etfs:
 # ── Portfolio ─────────────────────────────────────
 portfolio:
   initial_capital: 500
-  max_capital: 500  # bot gebruikt max dit bedrag, ook als account groter is
+  max_capital: 500  # bot uses at most this amount, even if the account balance is larger
   max_holdings: 3
   sizing_method: equal_weight
   rebalance_threshold: 0.05

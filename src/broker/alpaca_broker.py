@@ -81,7 +81,7 @@ class AlpacaBroker:
         return {"id": order.id, "status": order.status, "symbol": order.symbol}
 
     def _is_day_trade(self, ticker: str) -> bool:
-        """True als ticker vandaag ook al gekocht is (= zou een day trade worden)."""
+        """Returns True if the ticker was already bought today (i.e. selling it would create a day trade)."""
         if not TRADE_LOG.exists():
             return False
         today = date.today().isoformat()
@@ -92,11 +92,11 @@ class AlpacaBroker:
         return False
 
     def _count_day_trades_this_window(self) -> int:
-        """Tel het aantal day trades (koop+verkoop zelfde ticker zelfde dag) in de laatste 5 dagen."""
+        """Count the number of day trades (buy+sell same ticker same day) in the last 5 days."""
         if not TRADE_LOG.exists():
             return 0
         cutoff = (date.today() - timedelta(days=PDT_WINDOW_DAYS)).isoformat()
-        # Groepeer trades per (datum, ticker, side)
+        # Group trades by (date, ticker, side)
         trades: dict[tuple, bool] = {}
         with open(TRADE_LOG, newline="") as f:
             for row in csv.DictReader(f):
@@ -104,7 +104,7 @@ class AlpacaBroker:
                 if day < cutoff:
                     continue
                 trades[(day, row["ticker"], row["side"])] = True
-        # Dag trade = zowel buy als sell aanwezig voor zelfde ticker op zelfde dag
+        # Day trade = both buy and sell present for the same ticker on the same day
         day_trades = 0
         days_tickers = {(d, t) for (d, t, s) in trades if s == "sell"}
         for (d, t) in days_tickers:

@@ -8,7 +8,7 @@ def build_prompt(selected: list[ScoredETF], orders: list[Order], equity: float) 
         etf_lines.append(
             f"- {etf.ticker}: score={etf.composite:.3f} | "
             f"momentum={etf.factors['momentum']:.2f} | "
-            f"volatiliteit={etf.factors['volatility']:.2f} | "
+            f"volatility={etf.factors['volatility']:.2f} | "
             f"trend={etf.factors['trend']:.2f} | "
             f"mean_reversion={etf.factors['mean_reversion']:.2f}"
         )
@@ -17,23 +17,23 @@ def build_prompt(selected: list[ScoredETF], orders: list[Order], equity: float) 
     for order in orders:
         order_lines.append(f"- {order.side.upper()} {order.ticker}: ${order.notional:.2f}")
 
-    return f"""Je bent een kwantitatieve ETF portfolio analist. Analyseer de volgende trading beslissingen en geef professioneel advies in het Nederlands.
+    return f"""You are a quantitative ETF portfolio analyst. Analyse the following trading decisions and provide professional insights.
 
 **Portfolio equity:** ${equity:.2f}
 
-**Geselecteerde ETFs (multi-factor scoring):**
-{chr(10).join(etf_lines) if etf_lines else "Geen ETFs geselecteerd — cash positie aangehouden"}
+**Selected ETFs (multi-factor scoring):**
+{chr(10).join(etf_lines) if etf_lines else "No ETFs selected — holding cash position"}
 
-**Factor legenda:**
-- momentum (0–1): percentiel rank van gewogen rendement (1m/3m/6m) — hoog = sterke opwaartse trend
-- volatiliteit (0–1): inverted percentiel rank — hoog = lage volatiliteit (defensief profiel)
-- trend (0/0.5/1): positie t.o.v. SMA50 en SMA200 — 1.0 = boven beide gemiddelden
-- mean_reversion (0–1): RSI-gebaseerd — hoog = oversold (potentiële koopkans)
+**Factor legend:**
+- momentum (0–1): percentile rank of weighted return (1m/3m/6m) — high = strong upward trend
+- volatility (0–1): inverted percentile rank — high = low volatility (defensive profile)
+- trend (0/0.5/1): position relative to SMA50 and SMA200 — 1.0 = above both moving averages
+- mean_reversion (0–1): RSI-based — high = oversold (potential buying opportunity)
 
-**Gegenereerde orders:**
-{chr(10).join(order_lines) if order_lines else "Geen orders — posities zijn al in balans"}
+**Generated orders:**
+{chr(10).join(order_lines) if order_lines else "No orders — positions are already balanced"}
 
-Geef een analyse van maximaal 300 woorden. Bespreek:
-1. Wat de factor-combinatie onthult over het huidige marktklimaat
-2. Waarom deze specifieke ETFs interessant zijn en wat hun profiel vertelt
-3. Eventuele risico's of aandachtspunten voor de komende periode"""
+Provide an analysis of at most 300 words. Cover:
+1. What the factor combination reveals about the current market climate
+2. Why these specific ETFs are of interest and what their profile indicates
+3. Any risks or points of attention for the period ahead"""

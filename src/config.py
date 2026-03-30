@@ -17,8 +17,14 @@ def load_config(path: str | None = None) -> dict:
     with open(path) as f:
         config = yaml.safe_load(f)
 
-    config["broker"]["api_key"] = os.environ["ALPACA_API_KEY"]
-    config["broker"]["secret_key"] = os.environ["ALPACA_SECRET_KEY"]
+    api_key = os.getenv("ALPACA_API_KEY")
+    secret_key = os.getenv("ALPACA_SECRET_KEY")
+    if not api_key or not secret_key:
+        raise ValueError(
+            "Required environment variables not set: ALPACA_API_KEY and ALPACA_SECRET_KEY"
+        )
+    config["broker"]["api_key"] = api_key
+    config["broker"]["secret_key"] = secret_key
 
     return config
 

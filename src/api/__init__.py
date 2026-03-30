@@ -2,6 +2,8 @@ import asyncio
 import json
 import logging
 import os
+import shutil
+from pathlib import Path
 from typing import AsyncIterator
 
 from fastapi import FastAPI
@@ -73,7 +75,7 @@ def status():
         }
     except Exception as e:
         logger.exception("Status endpoint error")
-        return {"error": str(e)}
+        return {"error": "Could not fetch status. Check the logs for details."}
 
 
 @app.get("/api/analyze")
@@ -86,7 +88,7 @@ async def analyze():
 
         config = load_config()
 
-        yield sse({"type": "status", "message": "Verbinding met broker..."})
+        yield sse({"type": "status", "message": "Connecting to broker..."})
         try:
             broker = AlpacaBroker(
                 api_key=config["broker"]["api_key"],
@@ -99,24 +101,26 @@ async def analyze():
             invested = sum(p.market_value for p in positions.values())
             budget = min(max_capital, invested + account.cash)
         except Exception as e:
-            yield sse({"type": "error", "message": f"Broker fout: {e}"})
+            logger.exception("Broker error in analyze")
+            yield sse({"type": "error", "message": "Broker connection failed. Check the logs."})
             return
 
-        yield sse({"type": "status", "message": "Marktdata ophalen (15–30 sec)..."})
+        yield sse({"type": "status", "message": "Fetching market data (15–30 sec)..."})
         loop = asyncio.get_running_loop()
         try:
             price_data = await loop.run_in_executor(
                 None, fetch_prices, config["etfs"], config["data"]["history_days"]
             )
         except Exception as e:
-            yield sse({"type": "error", "message": f"Marktdata fout: {e}"})
+            logger.exception("Market data error in analyze")
+            yield sse({"type": "error", "message": "Failed to fetch market data. Check the logs."})
             return
 
         if not price_data:
-            yield sse({"type": "error", "message": "Geen marktdata beschikbaar"})
+            yield sse({"type": "error", "message": "No market data available"})
             return
 
-        yield sse({"type": "status", "message": "ETF scores berekenen..."})
+        yield sse({"type": "status", "message": "Calculating ETF scores..."})
         selected = rank_etfs(price_data, config)
         target_weights = compute_target_weights(selected, config["portfolio"]["sizing_method"])
         current_values = {t: p.market_value for t, p in positions.items()}
@@ -141,15 +145,21 @@ async def analyze():
             ],
         })
 
-        yield sse({"type": "status", "message": "AI analyse genereren..."})
+        yield sse({"type": "status", "message": "Generating AI analysis..."})
         prompt = build_prompt(selected, orders, budget)
 
         try:
             clean_env = {k: v for k, v in os.environ.items()
                          if k not in ("ANTHROPIC_API_KEY", "CLAUDECODE")}
 
+            claude_bin = shutil.which("claude")
+            if not claude_bin:
+                raise RuntimeError("claude CLI not found in PATH")
+
+            project_root = str(Path(__file__).resolve().parent.parent.parent)
+
             cmd = [
-                "/home/w1s3guy/.local/bin/claude",
+                claude_bin,
                 "--output-format", "stream-json",
                 "--verbose",
                 "--setting-sources", "",
@@ -168,7 +178,7 @@ async def analyze():
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 env=clean_env,
-                cwd="/home/w1s3guy/PycharmProjects/TraderBot",
+                cwd=project_root,
             )
             proc.stdin.write(input_msg.encode())
             await proc.stdin.drain()
@@ -189,7 +199,8 @@ async def analyze():
 
             await proc.wait()
         except Exception as e:
-            yield sse({"type": "error", "message": f"AI fout: {e}"})
+            logger.exception("AI error in analyze")
+            yield sse({"type": "error", "message": "AI analysis failed. Check the logs."})
             return
 
         yield sse({"type": "done"})
