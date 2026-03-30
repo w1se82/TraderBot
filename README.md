@@ -32,18 +32,30 @@ The top 3 ETFs are held in equal weight (~33% per position). Rebalancing only oc
 - **Drawdown circuit breaker**: liquidates all positions if the portfolio drops more than 15% from its peak
 - **Cooldown**: stays in cash for 5 days after a trip, then resets
 - **Rebalance threshold**: prevents unnecessary small trades
+- **PDT protection**: tracks day trades (buy + sell same ticker same day) and skips sells that would exceed the 3-day-trades-per-5-days limit for accounts under $25,000
+
+## AI Analysis
+
+The web dashboard includes an AI-powered analysis step driven by the **Claude Code CLI** (`claude`). After scoring the ETFs and generating orders, the dashboard streams a qualitative explanation of:
+
+- What the factor combination reveals about the current market climate
+- Why the selected ETFs are of interest based on their profile
+- Risks or points of attention for the period ahead
+
+The Claude CLI must be installed and available in `PATH`. No `ANTHROPIC_API_KEY` is required in `.env` — Claude Code authenticates independently.
 
 ## Daily Flow
 
 ```
-22:15 CET (after US market close)
+15:45 CET (15 min after US market open)
   1. Fetch 252 days of OHLCV data via yfinance
   2. Check circuit breaker (equity vs peak)
   3. Score all ETFs on 4 factors
   4. Select top 3, compute target allocation
   5. Compare with current positions
-  6. Generate and execute orders via Alpaca
-  7. Log everything
+  6. Check PDT limit before executing sells
+  7. Generate and execute orders via Alpaca
+  8. Log everything
 ```
 
 ## Installation
@@ -59,16 +71,22 @@ pip install -r requirements.txt
 # Configure API keys
 cp .env.example .env
 # Fill in your Alpaca API keys in .env
+# ANTHROPIC_API_KEY is not needed — the dashboard uses the locally installed Claude Code CLI
 ```
 
 ## Usage
 
 ```bash
-# Daily trading cycle
-python main.py run
+# Interactive menu
+python main.py
+#   1. run    — execute daily trading cycle
+#   2. serve  — start web dashboard
+#   3. status — show portfolio status
 
-# View current positions and scores
+# Or pass a command directly
+python main.py run
 python main.py status
+python main.py serve    # dashboard at http://localhost:8000
 ```
 
 ## Configuration
@@ -97,8 +115,14 @@ TraderBot/
 │   │   └── market_data.py     # yfinance wrapper
 │   ├── broker/
 │   │   └── alpaca_broker.py   # Alpaca API wrapper
+│   ├── ai/
+│   │   └── explainer.py       # Claude prompt builder
+│   ├── api/
+│   │   ├── __init__.py        # FastAPI app (status + SSE analyze)
+│   │   └── static/
+│   │       └── index.html     # Web dashboard
 │   └── cli/
-│       └── __init__.py        # Typer CLI (run, status)
+│       └── __init__.py        # Typer CLI with interactive menu
 ├── tests/                     # Unit tests (35 tests)
 ├── config/
 │   └── settings.yaml          # All configuration
@@ -138,8 +162,9 @@ crontab -e
 - yfinance (market data)
 - alpaca-trade-api (order execution)
 - pandas / numpy (calculations)
+- FastAPI + uvicorn (web dashboard)
+- Claude Code CLI (AI analysis, streamed via SSE)
 - typer (CLI)
-- FastAPI (dashboard, planned)
 
 ## Disclaimer
 
