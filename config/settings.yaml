@@ -1,0 +1,62 @@
+# ── ETF Universe ──────────────────────────────────
+etfs:
+  - SPY   # S&P 500
+  - QQQ   # Nasdaq 100
+  - VTI   # Total US Market
+  - VEA   # Developed ex-US
+  - VWO   # Emerging Markets
+  - TLT   # Long-term US Treasuries
+  - GLD   # Gold
+
+# ── Portfolio ─────────────────────────────────────
+portfolio:
+  initial_capital: 500
+  max_capital: 500  # bot gebruikt max dit bedrag, ook als account groter is
+  max_holdings: 3
+  sizing_method: equal_weight
+  rebalance_threshold: 0.05
+  min_trade_value: 1.0
+
+# ── Factors ───────────────────────────────────────
+factors:
+  momentum:
+    windows: [21, 63, 126]
+    weights: [0.33, 0.33, 0.34]
+  volatility:
+    window: 63
+  trend:
+    sma_short: 50
+    sma_long: 200
+  mean_reversion:
+    rsi_period: 14
+    oversold_threshold: 30
+    overbought_threshold: 70
+
+# ── Scoring weights (sum to 1.0) ─────────────────
+scoring:
+  momentum_weight: 0.35
+  volatility_weight: 0.25
+  trend_weight: 0.25
+  mean_reversion_weight: 0.15
+
+# ── Risk management ──────────────────────────────
+risk:
+  max_drawdown: 0.15
+  cooldown_days: 5
+
+# ── Broker ────────────────────────────────────────
+broker:
+  name: alpaca
+  paper_trading: true
+  base_url_paper: "https://paper-api.alpaca.markets"
+  base_url_live: "https://api.alpaca.markets"
+
+# ── Data ──────────────────────────────────────────
+data:
+  provider: yfinance
+  history_days: 252
+
+# ── Logging ───────────────────────────────────────
+logging:
+  level: INFO
+  file: logs/traderbot.log

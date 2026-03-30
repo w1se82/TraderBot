@@ -1,0 +1,12 @@
+[project]
+name = "traderbot"
+version = "0.1.0"
+description = "ETF Trading Bot"
+requires-python = ">=3.11"
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
