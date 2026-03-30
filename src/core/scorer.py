@@ -7,6 +7,7 @@ import pandas as pd
 from src.core.factors import (
     mean_reversion_score,
     momentum_score,
+    rsi,
     trend_score,
     volatility_score,
 )
@@ -18,7 +19,8 @@ logger = logging.getLogger(__name__)
 class ScoredETF:
     ticker: str
     composite: float
-    factors: dict[str, float]
+    factors: dict[str, float]   # normalised 0–1 scores
+    raw: dict[str, float] = None  # actual values (RSI, vol%, returns)
 
 
 def _percentile_rank(values: list[float]) -> list[float]:
@@ -43,24 +45,21 @@ def _percentile_rank(values: list[float]) -> list[float]:
 def rank_etfs(
     price_data: dict[str, pd.DataFrame],
     config: dict,
-) -> list[ScoredETF]:
+) -> tuple[list[ScoredETF], list[ScoredETF]]:
+    """Return (selected, all_ranked) where selected is the top N ETFs."""
     factor_cfg = config["factors"]
     score_cfg = config["scoring"]
 
     tickers = list(price_data.keys())
-    raw_momentum = []
-    raw_vol = []
-    raw_trend = []
-    raw_mr = []
+    raw_momentum, raw_vol, raw_trend, raw_mr = [], [], [], []
+    raw_values: list[dict] = []
 
     for ticker in tickers:
         close = price_data[ticker]["Close"]
+        windows = factor_cfg["momentum"]["windows"]
+        weights = factor_cfg["momentum"]["weights"]
 
-        raw_momentum.append(momentum_score(
-            close,
-            factor_cfg["momentum"]["windows"],
-            factor_cfg["momentum"]["weights"],
-        ))
+        raw_momentum.append(momentum_score(close, windows, weights))
         raw_vol.append(volatility_score(close, factor_cfg["volatility"]["window"]))
         raw_trend.append(trend_score(
             close, factor_cfg["trend"]["sma_short"], factor_cfg["trend"]["sma_long"]
@@ -71,6 +70,20 @@ def rank_etfs(
             factor_cfg["mean_reversion"]["oversold_threshold"],
             factor_cfg["mean_reversion"]["overbought_threshold"],
         ))
+
+        # Collect raw (human-readable) values for the AI prompt
+        vol_pct = volatility_score(close, factor_cfg["volatility"]["window"])
+        rsi_val = rsi(close, factor_cfg["mean_reversion"]["rsi_period"])
+        ret_1m = float((close.iloc[-1] / close.iloc[-22] - 1) * 100) if len(close) >= 22 else float("nan")
+        ret_3m = float((close.iloc[-1] / close.iloc[-63] - 1) * 100) if len(close) >= 63 else float("nan")
+        ret_6m = float((close.iloc[-1] / close.iloc[-126] - 1) * 100) if len(close) >= 126 else float("nan")
+        raw_values.append({
+            "vol_pct": round(vol_pct * 100, 1) if not np.isnan(vol_pct) else None,
+            "rsi": round(rsi_val, 1) if not np.isnan(rsi_val) else None,
+            "return_1m": round(ret_1m, 2) if not np.isnan(ret_1m) else None,
+            "return_3m": round(ret_3m, 2) if not np.isnan(ret_3m) else None,
+            "return_6m": round(ret_6m, 2) if not np.isnan(ret_6m) else None,
+        })
 
     mom_ranked = _percentile_rank(raw_momentum)
     vol_ranked = [1.0 - r if not np.isnan(r) else np.nan for r in _percentile_rank(raw_vol)]
@@ -95,7 +108,12 @@ def rank_etfs(
             + score_cfg["mean_reversion_weight"] * factors["mean_reversion"]
         )
 
-        results.append(ScoredETF(ticker=ticker, composite=composite, factors=factors))
+        results.append(ScoredETF(
+            ticker=ticker,
+            composite=composite,
+            factors=factors,
+            raw=raw_values[i],
+        ))
 
     results.sort(key=lambda x: x.composite, reverse=True)
 
@@ -113,4 +131,4 @@ def rank_etfs(
             f"composite={r.composite:.3f}{marker}"
         )
 
-    return selected
+    return selected, results

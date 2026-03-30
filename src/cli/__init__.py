@@ -93,7 +93,7 @@ def _run_cycle(config: dict) -> None:
         return
 
     # 5. Score and rank ETFs
-    selected = rank_etfs(price_data, config)
+    selected, _ = rank_etfs(price_data, config)
     if not selected:
         logger.warning("No ETFs passed scoring, holding cash")
         return
@@ -173,7 +173,7 @@ def status():
     typer.echo(f"  {'-' * 40}")
     price_data = fetch_prices(config["etfs"], config["data"]["history_days"])
     if price_data:
-        selected = rank_etfs(price_data, config)
+        selected, _ = rank_etfs(price_data, config)
         for etf in selected:
             typer.echo(f"  {etf.ticker:<6} composite={etf.composite:.3f}")
 

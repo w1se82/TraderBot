@@ -25,21 +25,13 @@
 
   <!-- Status Cards -->
   <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-
-    <!-- Account Card -->
     <div class="bg-gray-900 rounded-xl p-5 border border-gray-800">
       <h2 class="text-xs font-medium text-gray-500 uppercase tracking-widest mb-4">Account</h2>
-      <div id="account-content">
-        <div class="text-gray-600 text-sm">Loading...</div>
-      </div>
+      <div id="account-content"><div class="text-gray-600 text-sm">Loading...</div></div>
     </div>
-
-    <!-- Risk Card -->
     <div class="bg-gray-900 rounded-xl p-5 border border-gray-800">
       <h2 class="text-xs font-medium text-gray-500 uppercase tracking-widest mb-4">Risk Status</h2>
-      <div id="risk-content">
-        <div class="text-gray-600 text-sm">Loading...</div>
-      </div>
+      <div id="risk-content"><div class="text-gray-600 text-sm">Loading...</div></div>
     </div>
   </div>
 
@@ -49,14 +41,22 @@
     <div id="positions-content"></div>
   </div>
 
-  <!-- Analyze Button -->
-  <div class="flex justify-center mb-6">
+  <!-- Action Buttons -->
+  <div class="flex justify-center gap-4 mb-6">
     <button id="analyze-btn" onclick="runAnalysis()"
       class="px-8 py-3 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
       </svg>
       Run Analysis
+    </button>
+    <button id="run-btn" onclick="runTradingCycle()"
+      class="px-8 py-3 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+      Execute Trading Cycle
     </button>
   </div>
 
@@ -69,8 +69,14 @@
     <span id="status-text"></span>
   </div>
 
-  <!-- Error message -->
+  <!-- Error / warning message -->
   <div id="error-msg" class="hidden bg-red-950 border border-red-800 rounded-lg p-4 mb-6 text-red-300 text-sm"></div>
+
+  <!-- Run cycle result -->
+  <div id="run-result" class="hidden bg-gray-900 rounded-xl p-5 border border-gray-800 mb-6">
+    <h2 class="text-xs font-medium text-gray-500 uppercase tracking-widest mb-4">Trading Cycle Result</h2>
+    <div id="run-log" class="space-y-1 text-sm font-mono"></div>
+  </div>
 
   <!-- ETF Scores -->
   <div id="scores-section" class="hidden mb-6">
@@ -145,6 +151,22 @@
       el.textContent = '⚠ ' + msg;
     }
 
+    function disableButtons() {
+      ['analyze-btn', 'run-btn'].forEach(id => {
+        const btn = document.getElementById(id);
+        btn.disabled = true;
+        btn.classList.add('opacity-50', 'cursor-not-allowed');
+      });
+    }
+
+    function enableButtons() {
+      ['analyze-btn', 'run-btn'].forEach(id => {
+        const btn = document.getElementById(id);
+        btn.disabled = false;
+        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+      });
+    }
+
     // ── Load status on page load ──────────────────────────────────────────────
 
     async function loadStatus() {
@@ -158,14 +180,12 @@
           return;
         }
 
-        // Mode badge
         const badge = document.getElementById('mode-badge');
         badge.textContent = data.paper_trading ? 'PAPER TRADING' : 'LIVE TRADING';
         badge.className = data.paper_trading
           ? 'text-xs px-3 py-1 rounded-full bg-yellow-900 text-yellow-300'
           : 'text-xs px-3 py-1 rounded-full bg-emerald-900 text-emerald-300';
 
-        // Account card
         document.getElementById('account-content').innerHTML = `
           <div class="space-y-2">
             <div class="flex justify-between">
@@ -182,7 +202,6 @@
             </div>
           </div>`;
 
-        // Risk card
         const r = data.risk;
         const drawdownColor = r.current_drawdown >= r.max_drawdown_threshold * 0.8
           ? 'bg-red-500' : r.current_drawdown >= r.max_drawdown_threshold * 0.5
@@ -213,7 +232,6 @@
             </div>
           </div>`;
 
-        // Positions
         if (data.positions.length > 0) {
           const rows = data.positions.map(p => `
             <div class="flex items-center justify-between py-2 border-b border-gray-800 last:border-0">
@@ -239,14 +257,11 @@
     // ── Run Analysis via SSE ──────────────────────────────────────────────────
 
     function runAnalysis() {
-      const btn = document.getElementById('analyze-btn');
-      btn.disabled = true;
-      btn.className = btn.className.replace('bg-emerald-600 hover:bg-emerald-500', 'bg-gray-700 cursor-not-allowed');
-
-      // Reset sections
+      disableButtons();
       document.getElementById('scores-section').classList.add('hidden');
       document.getElementById('orders-section').classList.add('hidden');
       document.getElementById('ai-section').classList.add('hidden');
+      document.getElementById('run-result').classList.add('hidden');
       document.getElementById('ai-text').textContent = '';
       document.getElementById('error-msg').classList.add('hidden');
 
@@ -260,15 +275,12 @@
 
         if (data.type === 'status') {
           showStatus(data.message);
-
         } else if (data.type === 'error') {
           showError(data.message);
           es.close();
-          resetBtn();
-
+          enableButtons();
         } else if (data.type === 'scores') {
           renderScores(data);
-
         } else if (data.type === 'text') {
           if (!aiStarted) {
             aiStarted = true;
@@ -278,32 +290,84 @@
           const el = document.getElementById('ai-text');
           el.classList.add('cursor');
           el.textContent += data.content;
-
         } else if (data.type === 'done') {
           hideStatus();
           document.getElementById('ai-text').classList.remove('cursor');
           es.close();
-          resetBtn();
-          loadStatus(); // Refresh account status
+          enableButtons();
+          loadStatus();
         }
       };
 
       es.onerror = () => {
         showError('Connection lost. Please try again.');
         es.close();
-        resetBtn();
+        enableButtons();
       };
     }
 
-    function resetBtn() {
-      const btn = document.getElementById('analyze-btn');
-      btn.disabled = false;
-      btn.className = btn.className
-        .replace('bg-gray-700 cursor-not-allowed', 'bg-emerald-600 hover:bg-emerald-500');
+    // ── Execute Trading Cycle via SSE ─────────────────────────────────────────
+
+    function runTradingCycle() {
+      if (!confirm('Execute the trading cycle and submit real orders?')) return;
+
+      disableButtons();
+      document.getElementById('scores-section').classList.add('hidden');
+      document.getElementById('orders-section').classList.add('hidden');
+      document.getElementById('ai-section').classList.add('hidden');
+      document.getElementById('error-msg').classList.add('hidden');
+
+      const logEl = document.getElementById('run-log');
+      logEl.innerHTML = '';
+      document.getElementById('run-result').classList.remove('hidden');
+
+      function appendLog(msg, color = 'text-gray-300') {
+        const line = document.createElement('div');
+        line.className = color;
+        line.textContent = msg;
+        logEl.appendChild(line);
+      }
+
+      showStatus('Starting trading cycle...');
+
+      const es = new EventSource('/api/run');
+
+      es.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+
+        if (data.type === 'status') {
+          showStatus(data.message);
+          appendLog('› ' + data.message, 'text-gray-400');
+        } else if (data.type === 'order') {
+          const color = data.side === 'buy' ? 'text-emerald-400' : 'text-red-400';
+          appendLog(`  ${data.side.toUpperCase()} ${data.ticker}  $${data.notional.toFixed(2)}`, color);
+        } else if (data.type === 'warning') {
+          appendLog('⚠ ' + data.message, 'text-yellow-400');
+        } else if (data.type === 'error') {
+          showError(data.message);
+          es.close();
+          enableButtons();
+        } else if (data.type === 'done') {
+          hideStatus();
+          appendLog('✓ ' + data.message, 'text-emerald-400');
+          es.close();
+          enableButtons();
+          loadStatus();
+        }
+      };
+
+      es.onerror = () => {
+        showError('Connection lost. Please try again.');
+        es.close();
+        enableButtons();
+      };
     }
 
+    // ── Render scores table ───────────────────────────────────────────────────
+
     function renderScores(data) {
-      // Scores table
+      const selectedTickers = new Set(data.selected.map(e => e.ticker));
+
       const rows = data.selected.map(etf => `
         <tr class="hover:bg-gray-800/50 transition-colors">
           <td class="py-3 pr-4">
@@ -323,10 +387,27 @@
           <td class="py-3">${factorBar(etf.factors.mean_reversion)}</td>
         </tr>`).join('');
 
-      document.getElementById('scores-body').innerHTML = rows;
+      // Rejected ETFs (dimmed)
+      const rejectedRows = (data.all_etfs || [])
+        .filter(e => !selectedTickers.has(e.ticker))
+        .map(etf => `
+        <tr class="opacity-40 hover:opacity-60 transition-opacity">
+          <td class="py-2 pr-4">
+            <span class="text-gray-400">${etf.ticker}</span>
+          </td>
+          <td class="py-2 pr-4" colspan="5">
+            <div class="flex items-center gap-2">
+              <div class="flex-1 bg-gray-800 rounded-full h-1.5 min-w-16">
+                <div class="bg-gray-600 h-1.5 rounded-full" style="width:${Math.round(etf.composite * 100)}%"></div>
+              </div>
+              <span class="text-gray-500 font-mono text-xs">${etf.composite.toFixed(3)}</span>
+            </div>
+          </td>
+        </tr>`).join('');
+
+      document.getElementById('scores-body').innerHTML = rows + rejectedRows;
       document.getElementById('scores-section').classList.remove('hidden');
 
-      // Orders
       if (data.orders.length > 0) {
         const orderRows = data.orders.map(o => {
           const isBuy = o.side === 'buy';
@@ -342,12 +423,11 @@
             </div>`;
         }).join('');
         document.getElementById('orders-content').innerHTML = orderRows;
-        document.getElementById('orders-section').classList.remove('hidden');
       } else {
         document.getElementById('orders-content').innerHTML =
           '<p class="text-gray-500 text-sm">No orders needed — positions are already balanced</p>';
-        document.getElementById('orders-section').classList.remove('hidden');
       }
+      document.getElementById('orders-section').classList.remove('hidden');
     }
 
     // ── Init ──────────────────────────────────────────────────────────────────
