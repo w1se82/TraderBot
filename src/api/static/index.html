@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TraderBot Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @keyframes blink { 50% { opacity: 0; } }
+    .cursor::after { content: '▊'; animation: blink 1s step-end infinite; font-size: 0.9em; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner { animation: spin 1s linear infinite; }
+  </style>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen p-4 md:p-8" style="font-family: 'Inter', system-ui, sans-serif;">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-8">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center text-gray-950 font-bold text-sm">TB</div>
+      <h1 class="text-xl font-semibold tracking-tight">TraderBot Dashboard</h1>
+    </div>
+    <div id="mode-badge" class="text-xs px-3 py-1 rounded-full bg-gray-800 text-gray-400">Laden...</div>
+  </div>
+
+  <!-- Status Cards -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+
+    <!-- Account Card -->
+    <div class="bg-gray-900 rounded-xl p-5 border border-gray-800">
+      <h2 class="text-xs font-medium text-gray-500 uppercase tracking-widest mb-4">Account</h2>
+      <div id="account-content">
+        <div class="text-gray-600 text-sm">Laden...</div>
+      </div>
+    </div>
+
+    <!-- Risk Card -->
+    <div class="bg-gray-900 rounded-xl p-5 border border-gray-800">
+      <h2 class="text-xs font-medium text-gray-500 uppercase tracking-widest mb-4">Risico Status</h2>
+      <div id="risk-content">
+        <div class="text-gray-600 text-sm">Laden...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Positions Card -->
+  <div id="positions-card" class="bg-gray-900 rounded-xl p-5 border border-gray-800 mb-6 hidden">
+    <h2 class="text-xs font-medium text-gray-500 uppercase tracking-widest mb-4">Huidige Posities</h2>
+    <div id="positions-content"></div>
+  </div>
+
+  <!-- Analyze Button -->
+  <div class="flex justify-center mb-6">
+    <button id="analyze-btn" onclick="runAnalysis()"
+      class="px-8 py-3 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+      </svg>
+      Run Analyse
+    </button>
+  </div>
+
+  <!-- Status message -->
+  <div id="status-msg" class="hidden flex items-center gap-2 text-sm text-gray-400 justify-center mb-6">
+    <svg class="spinner w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+    </svg>
+    <span id="status-text"></span>
+  </div>
+
+  <!-- Error message -->
+  <div id="error-msg" class="hidden bg-red-950 border border-red-800 rounded-lg p-4 mb-6 text-red-300 text-sm"></div>
+
+  <!-- ETF Scores -->
+  <div id="scores-section" class="hidden mb-6">
+    <div class="bg-gray-900 rounded-xl p-5 border border-gray-800">
+      <h2 class="text-xs font-medium text-gray-500 uppercase tracking-widest mb-4">ETF Scores</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-gray-500 text-xs uppercase">
+              <th class="text-left pb-3 pr-4">ETF</th>
+              <th class="text-left pb-3 pr-4 min-w-24">Score</th>
+              <th class="text-left pb-3 pr-4 min-w-28">Momentum</th>
+              <th class="text-left pb-3 pr-4 min-w-28">Volatiliteit</th>
+              <th class="text-left pb-3 pr-4 min-w-28">Trend</th>
+              <th class="text-left pb-3 min-w-28">Mean Rev.</th>
+            </tr>
+          </thead>
+          <tbody id="scores-body" class="divide-y divide-gray-800"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Orders -->
+  <div id="orders-section" class="hidden mb-6">
+    <div class="bg-gray-900 rounded-xl p-5 border border-gray-800">
+      <h2 class="text-xs font-medium text-gray-500 uppercase tracking-widest mb-4">Gegenereerde Orders</h2>
+      <div id="orders-content"></div>
+    </div>
+  </div>
+
+  <!-- AI Explanation -->
+  <div id="ai-section" class="hidden mb-6">
+    <div class="bg-gray-900 rounded-xl p-5 border border-gray-800">
+      <div class="flex items-center gap-2 mb-4">
+        <div class="w-5 h-5 bg-violet-600 rounded flex items-center justify-center text-white" style="font-size: 10px; font-weight: bold;">AI</div>
+        <h2 class="text-xs font-medium text-gray-500 uppercase tracking-widest">Claude Analyse</h2>
+      </div>
+      <div id="ai-text" class="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap cursor"></div>
+    </div>
+  </div>
+
+  <script>
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    function factorBar(value) {
+      const pct = Math.round(value * 100);
+      const color = value >= 0.7 ? 'bg-emerald-500' : value >= 0.4 ? 'bg-yellow-500' : 'bg-red-500';
+      return `
+        <div class="flex items-center gap-2">
+          <div class="flex-1 bg-gray-800 rounded-full h-1.5 min-w-16">
+            <div class="${color} h-1.5 rounded-full" style="width:${pct}%"></div>
+          </div>
+          <span class="text-gray-400 text-xs w-8 text-right">${value.toFixed(2)}</span>
+        </div>`;
+    }
+
+    function showStatus(msg) {
+      document.getElementById('status-msg').classList.remove('hidden');
+      document.getElementById('status-text').textContent = msg;
+      document.getElementById('error-msg').classList.add('hidden');
+    }
+
+    function hideStatus() {
+      document.getElementById('status-msg').classList.add('hidden');
+    }
+
+    function showError(msg) {
+      hideStatus();
+      const el = document.getElementById('error-msg');
+      el.classList.remove('hidden');
+      el.textContent = '⚠ ' + msg;
+    }
+
+    // ── Load status on page load ──────────────────────────────────────────────
+
+    async function loadStatus() {
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+
+        if (data.error) {
+          document.getElementById('account-content').innerHTML =
+            `<p class="text-red-400 text-sm">${data.error}</p>`;
+          return;
+        }
+
+        // Mode badge
+        const badge = document.getElementById('mode-badge');
+        badge.textContent = data.paper_trading ? 'PAPER TRADING' : 'LIVE TRADING';
+        badge.className = data.paper_trading
+          ? 'text-xs px-3 py-1 rounded-full bg-yellow-900 text-yellow-300'
+          : 'text-xs px-3 py-1 rounded-full bg-emerald-900 text-emerald-300';
+
+        // Account card
+        document.getElementById('account-content').innerHTML = `
+          <div class="space-y-2">
+            <div class="flex justify-between">
+              <span class="text-gray-500 text-sm">Budget</span>
+              <span class="font-semibold text-lg">$${data.budget.toLocaleString('nl-NL', {minimumFractionDigits: 2})}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-500 text-sm">Cash</span>
+              <span class="text-gray-300">$${data.cash.toLocaleString('nl-NL', {minimumFractionDigits: 2})}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-500 text-sm">Max kapitaal</span>
+              <span class="text-gray-400">$${data.max_capital.toLocaleString('nl-NL', {minimumFractionDigits: 2})}</span>
+            </div>
+          </div>`;
+
+        // Risk card
+        const r = data.risk;
+        const drawdownColor = r.current_drawdown >= r.max_drawdown_threshold * 0.8
+          ? 'bg-red-500' : r.current_drawdown >= r.max_drawdown_threshold * 0.5
+          ? 'bg-yellow-500' : 'bg-emerald-500';
+        const drawdownPct = Math.min((r.current_drawdown / r.max_drawdown_threshold) * 100, 100);
+        const cbStatus = r.circuit_breaker_active
+          ? '<span class="text-red-400 font-medium">⛔ ACTIEF</span>'
+          : '<span class="text-emerald-400 font-medium">✓ Inactief</span>';
+
+        document.getElementById('risk-content').innerHTML = `
+          <div class="space-y-3">
+            <div class="flex justify-between items-center">
+              <span class="text-gray-500 text-sm">Circuit Breaker</span>
+              ${cbStatus}
+            </div>
+            <div>
+              <div class="flex justify-between text-sm mb-1">
+                <span class="text-gray-500">Drawdown</span>
+                <span class="text-gray-300">${r.current_drawdown}% / ${r.max_drawdown_threshold}%</span>
+              </div>
+              <div class="bg-gray-800 rounded-full h-2">
+                <div class="${drawdownColor} h-2 rounded-full transition-all" style="width:${drawdownPct}%"></div>
+              </div>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-500 text-sm">Piek equity</span>
+              <span class="text-gray-300">$${r.peak_equity.toLocaleString('nl-NL', {minimumFractionDigits: 2})}</span>
+            </div>
+          </div>`;
+
+        // Positions
+        if (data.positions.length > 0) {
+          const rows = data.positions.map(p => `
+            <div class="flex items-center justify-between py-2 border-b border-gray-800 last:border-0">
+              <span class="font-medium">${p.ticker}</span>
+              <span class="text-gray-400 text-sm">$${p.market_value.toLocaleString('nl-NL', {minimumFractionDigits: 2})}</span>
+              <div class="flex items-center gap-2 w-32">
+                <div class="flex-1 bg-gray-800 rounded-full h-1.5">
+                  <div class="bg-blue-500 h-1.5 rounded-full" style="width:${p.weight}%"></div>
+                </div>
+                <span class="text-gray-400 text-xs w-10 text-right">${p.weight}%</span>
+              </div>
+            </div>`).join('');
+          document.getElementById('positions-content').innerHTML = rows;
+          document.getElementById('positions-card').classList.remove('hidden');
+        }
+
+      } catch (err) {
+        document.getElementById('account-content').innerHTML =
+          `<p class="text-red-400 text-sm">Kan niet verbinden met server</p>`;
+      }
+    }
+
+    // ── Run Analysis via SSE ──────────────────────────────────────────────────
+
+    function runAnalysis() {
+      const btn = document.getElementById('analyze-btn');
+      btn.disabled = true;
+      btn.className = btn.className.replace('bg-emerald-600 hover:bg-emerald-500', 'bg-gray-700 cursor-not-allowed');
+
+      // Reset sections
+      document.getElementById('scores-section').classList.add('hidden');
+      document.getElementById('orders-section').classList.add('hidden');
+      document.getElementById('ai-section').classList.add('hidden');
+      document.getElementById('ai-text').textContent = '';
+      document.getElementById('error-msg').classList.add('hidden');
+
+      showStatus('Analyse starten...');
+
+      const es = new EventSource('/api/analyze');
+      let aiStarted = false;
+
+      es.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+
+        if (data.type === 'status') {
+          showStatus(data.message);
+
+        } else if (data.type === 'error') {
+          showError(data.message);
+          es.close();
+          resetBtn();
+
+        } else if (data.type === 'scores') {
+          renderScores(data);
+
+        } else if (data.type === 'text') {
+          if (!aiStarted) {
+            aiStarted = true;
+            hideStatus();
+            document.getElementById('ai-section').classList.remove('hidden');
+          }
+          const el = document.getElementById('ai-text');
+          el.classList.add('cursor');
+          el.textContent += data.content;
+
+        } else if (data.type === 'done') {
+          hideStatus();
+          document.getElementById('ai-text').classList.remove('cursor');
+          es.close();
+          resetBtn();
+          loadStatus(); // Refresh account status
+        }
+      };
+
+      es.onerror = () => {
+        showError('Verbinding verbroken. Probeer opnieuw.');
+        es.close();
+        resetBtn();
+      };
+    }
+
+    function resetBtn() {
+      const btn = document.getElementById('analyze-btn');
+      btn.disabled = false;
+      btn.className = btn.className
+        .replace('bg-gray-700 cursor-not-allowed', 'bg-emerald-600 hover:bg-emerald-500');
+    }
+
+    function renderScores(data) {
+      // Scores table
+      const rows = data.selected.map(etf => `
+        <tr class="hover:bg-gray-800/50 transition-colors">
+          <td class="py-3 pr-4">
+            <span class="font-semibold text-white">${etf.ticker}</span>
+          </td>
+          <td class="py-3 pr-4">
+            <div class="flex items-center gap-2">
+              <div class="flex-1 bg-gray-800 rounded-full h-2 min-w-16">
+                <div class="bg-emerald-500 h-2 rounded-full" style="width:${Math.round(etf.composite * 100)}%"></div>
+              </div>
+              <span class="text-emerald-400 font-mono text-xs">${etf.composite.toFixed(3)}</span>
+            </div>
+          </td>
+          <td class="py-3 pr-4">${factorBar(etf.factors.momentum)}</td>
+          <td class="py-3 pr-4">${factorBar(etf.factors.volatility)}</td>
+          <td class="py-3 pr-4">${factorBar(etf.factors.trend)}</td>
+          <td class="py-3">${factorBar(etf.factors.mean_reversion)}</td>
+        </tr>`).join('');
+
+      document.getElementById('scores-body').innerHTML = rows;
+      document.getElementById('scores-section').classList.remove('hidden');
+
+      // Orders
+      if (data.orders.length > 0) {
+        const orderRows = data.orders.map(o => {
+          const isBuy = o.side === 'buy';
+          return `
+            <div class="flex items-center justify-between py-2 border-b border-gray-800 last:border-0">
+              <div class="flex items-center gap-3">
+                <span class="text-xs font-medium px-2 py-0.5 rounded ${isBuy ? 'bg-emerald-900 text-emerald-400' : 'bg-red-900 text-red-400'}">
+                  ${o.side.toUpperCase()}
+                </span>
+                <span class="font-medium">${o.ticker}</span>
+              </div>
+              <span class="text-gray-300 font-mono">$${o.notional.toFixed(2)}</span>
+            </div>`;
+        }).join('');
+        document.getElementById('orders-content').innerHTML = orderRows;
+        document.getElementById('orders-section').classList.remove('hidden');
+      } else {
+        document.getElementById('orders-content').innerHTML =
+          '<p class="text-gray-500 text-sm">Geen orders nodig — posities zijn al in balans</p>';
+        document.getElementById('orders-section').classList.remove('hidden');
+      }
+    }
+
+    // ── Init ──────────────────────────────────────────────────────────────────
+    loadStatus();
+  </script>
+</body>
+</html>

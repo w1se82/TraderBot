@@ -99,6 +99,16 @@ def _run_cycle(config: dict) -> None:
 
 
 @app.command()
+def serve(host: str = "0.0.0.0", port: int = 8000):
+    """Start the web dashboard."""
+    import uvicorn
+    config = load_config()
+    setup_logging(config)
+    logger.info(f"Starting dashboard on http://{host}:{port}")
+    uvicorn.run("src.api:app", host=host, port=port, reload=False)
+
+
+@app.command()
 def status():
     """Show current portfolio status and scores."""
     config = load_config()

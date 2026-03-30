@@ -1,12 +1,15 @@
 import csv
 import logging
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import alpaca_trade_api as tradeapi
 
 logger = logging.getLogger(__name__)
+
+PDT_MAX_DAY_TRADES = 3
+PDT_WINDOW_DAYS = 5
 
 TRADE_LOG = Path(__file__).resolve().parent.parent.parent / "logs" / "trades.csv"
 
@@ -55,7 +58,17 @@ class AlpacaBroker:
             for p in positions
         }
 
-    def submit_order(self, ticker: str, side: str, notional: float) -> dict:
+    def submit_order(self, ticker: str, side: str, notional: float) -> dict | None:
+        if side == "sell" and self._is_day_trade(ticker):
+            used = self._count_day_trades_this_window()
+            if used >= PDT_MAX_DAY_TRADES:
+                logger.warning(
+                    "PDT limit reached (%d/%d day trades in last %d days) — "
+                    "skipping sell %s to avoid pattern day trader flag",
+                    used, PDT_MAX_DAY_TRADES, PDT_WINDOW_DAYS, ticker,
+                )
+                return None
+
         logger.info(f"Submitting {side} ${notional:.2f} of {ticker}")
         order = self.api.submit_order(
             symbol=ticker,
@@ -66,6 +79,38 @@ class AlpacaBroker:
         )
         self._log_trade(ticker, side, notional)
         return {"id": order.id, "status": order.status, "symbol": order.symbol}
+
+    def _is_day_trade(self, ticker: str) -> bool:
+        """True als ticker vandaag ook al gekocht is (= zou een day trade worden)."""
+        if not TRADE_LOG.exists():
+            return False
+        today = date.today().isoformat()
+        with open(TRADE_LOG, newline="") as f:
+            for row in csv.DictReader(f):
+                if row["ticker"] == ticker and row["side"] == "buy" and row["timestamp"].startswith(today):
+                    return True
+        return False
+
+    def _count_day_trades_this_window(self) -> int:
+        """Tel het aantal day trades (koop+verkoop zelfde ticker zelfde dag) in de laatste 5 dagen."""
+        if not TRADE_LOG.exists():
+            return 0
+        cutoff = (date.today() - timedelta(days=PDT_WINDOW_DAYS)).isoformat()
+        # Groepeer trades per (datum, ticker, side)
+        trades: dict[tuple, bool] = {}
+        with open(TRADE_LOG, newline="") as f:
+            for row in csv.DictReader(f):
+                day = row["timestamp"][:10]
+                if day < cutoff:
+                    continue
+                trades[(day, row["ticker"], row["side"])] = True
+        # Dag trade = zowel buy als sell aanwezig voor zelfde ticker op zelfde dag
+        day_trades = 0
+        days_tickers = {(d, t) for (d, t, s) in trades if s == "sell"}
+        for (d, t) in days_tickers:
+            if (d, t, "buy") in trades:
+                day_trades += 1
+        return day_trades
 
     def liquidate_all(self) -> list[dict]:
         logger.warning("Liquidating ALL positions")

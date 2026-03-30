@@ -1,4 +1,5 @@
 import logging
+import math
 from dataclasses import dataclass
 
 from src.core.scorer import ScoredETF
@@ -61,6 +62,6 @@ def generate_orders(
         if diff < 0:
             sells.append(Order(ticker=ticker, side="sell", notional=round(abs(diff), 2)))
         else:
-            buys.append(Order(ticker=ticker, side="buy", notional=round(diff, 2)))
+            buys.append(Order(ticker=ticker, side="buy", notional=math.floor(diff * 100) / 100))
 
     return sells + buys
