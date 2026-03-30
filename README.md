@@ -140,3 +140,23 @@ crontab -e
 - pandas / numpy (calculations)
 - typer (CLI)
 - FastAPI (dashboard, planned)
+
+## Disclaimer
+
+This software is provided for **educational and informational purposes only**. It is not intended as financial advice, investment advice, or a recommendation to buy or sell any securities.
+
+**Use at your own risk.** Trading stocks and ETFs involves significant risk of loss, including the potential loss of your entire investment. Past performance — whether simulated, backtested, or live — is not indicative of future results.
+
+The authors and contributors of this project:
+- Are not licensed financial advisors, brokers, or dealers
+- Make no guarantees about the accuracy, reliability, or completeness of the trading strategy
+- Accept no liability for any financial losses incurred through the use of this software
+- Do not guarantee that the circuit breaker or any risk management feature will prevent losses in all market conditions
+
+Before trading with real money, you should:
+- Understand the risks involved in algorithmic trading
+- Consult with a qualified financial advisor
+- Only invest money you can afford to lose
+- Thoroughly test the strategy using paper trading
+
+By using this software, you acknowledge that you are solely responsible for any trading decisions and their outcomes.
