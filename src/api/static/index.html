@@ -5,14 +5,31 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TraderBot Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
   <style>
     @keyframes blink { 50% { opacity: 0; } }
     .cursor::after { content: '▊'; animation: blink 1s step-end infinite; font-size: 0.9em; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .spinner { animation: spin 1s linear infinite; }
+    .tip {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 14px; height: 14px; border-radius: 50%;
+      background: #374151; color: #9ca3af; font-size: 9px; font-weight: 700;
+      cursor: default; flex-shrink: 0; line-height: 1;
+    }
+    .tip:hover { background: #4b5563; color: #e5e7eb; }
+    #tooltip {
+      position: fixed; z-index: 50; max-width: 260px;
+      background: #111827; border: 1px solid #374151;
+      color: #d1d5db; font-size: 12px; line-height: 1.5;
+      padding: 8px 12px; border-radius: 8px;
+      pointer-events: none; opacity: 0; transition: opacity 0.15s;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    }
   </style>
 </head>
 <body class="bg-gray-950 text-gray-100 min-h-screen p-4 md:p-8" style="font-family: 'Inter', system-ui, sans-serif;">
+  <div id="tooltip"></div>
 
   <!-- Header -->
   <div class="flex items-center justify-between mb-8">
@@ -20,7 +37,155 @@
       <div class="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center text-gray-950 font-bold text-sm">TB</div>
       <h1 class="text-xl font-semibold tracking-tight">TraderBot Dashboard</h1>
     </div>
-    <div id="mode-badge" class="text-xs px-3 py-1 rounded-full bg-gray-800 text-gray-400">Loading...</div>
+    <div class="flex items-center gap-3">
+      <div id="mode-badge" class="text-xs px-3 py-1 rounded-full bg-gray-800 text-gray-400">Loading...</div>
+      <button onclick="toggleSettings()" title="Settings"
+        class="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors text-gray-400 hover:text-gray-200">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Settings Panel -->
+  <div id="settings-panel" class="hidden bg-gray-900 rounded-xl border border-gray-800 mb-6 overflow-hidden">
+    <div class="p-5 border-b border-gray-800 flex items-center justify-between">
+      <h2 class="text-xs font-medium text-gray-500 uppercase tracking-widest">Settings</h2>
+      <div id="settings-save-status" class="text-xs text-gray-500"></div>
+    </div>
+    <div class="p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
+
+      <!-- Portfolio -->
+      <div>
+        <h3 class="text-sm font-medium text-gray-300 mb-3">Portfolio</h3>
+        <div class="space-y-3">
+          <div class="flex items-center justify-between gap-4">
+            <label class="text-sm text-gray-400 w-40 flex items-center gap-1">Initial capital ($)
+              <span class="tip" data-tip="Het bedrag dat de bot maximaal investeert bij de eerste run. Winst bovenop dit bedrag wordt automatisch herinvesteerd in volgende cycles.">?</span>
+            </label>
+            <input id="s-max_capital" type="number" min="1" step="50"
+              class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-100 w-28 text-right focus:outline-none focus:border-emerald-500">
+          </div>
+          <div class="flex items-center justify-between gap-4">
+            <label class="text-sm text-gray-400 w-40 flex items-center gap-1">Max holdings
+              <span class="tip" data-tip="Hoeveel ETFs gelijktijdig aangehouden worden. De bot kiest altijd de top N best scorende ETFs uit het universum.">?</span>
+            </label>
+            <input id="s-max_holdings" type="number" min="1" max="10" step="1"
+              class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-100 w-28 text-right focus:outline-none focus:border-emerald-500">
+          </div>
+          <div class="flex items-center justify-between gap-4">
+            <label class="text-sm text-gray-400 w-40 flex items-center gap-1">Sizing method
+              <span class="tip" data-tip="Equal weight: elk ETF krijgt een gelijk deel van het budget. Score proportional: hogere scorers krijgen een groter deel — winnaars worden zwaarder gewogen.">?</span>
+            </label>
+            <select id="s-sizing_method"
+              class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-100 w-44 focus:outline-none focus:border-emerald-500">
+              <option value="equal_weight">Equal weight</option>
+              <option value="score_proportional">Score proportional</option>
+            </select>
+          </div>
+          <div class="flex items-center justify-between gap-4">
+            <label class="text-sm text-gray-400 w-40 flex items-center gap-1">Rebalance threshold
+              <span class="tip" data-tip="De bot herbalanceert alleen als een positie meer dan dit % afwijkt van het doel. Lager = vaker handelen, hoger = minder transactiekosten.">?</span>
+            </label>
+            <div class="flex items-center gap-1">
+              <input id="s-rebalance_threshold" type="number" min="1" max="50" step="1"
+                class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-100 w-20 text-right focus:outline-none focus:border-emerald-500">
+              <span class="text-gray-500 text-sm">%</span>
+            </div>
+          </div>
+          <div class="flex items-center justify-between gap-4">
+            <label class="text-sm text-gray-400 w-40 flex items-center gap-1">Paper trading
+              <span class="tip" data-tip="Simulatiemodus: orders worden niet echt uitgevoerd bij Alpaca. Altijd eerst testen in paper mode voordat je live gaat.">?</span>
+            </label>
+            <button id="s-paper_trading" onclick="togglePaperTrading()"
+              class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none">
+              <span id="s-paper_trading-knob" class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"></span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Risk -->
+      <div>
+        <h3 class="text-sm font-medium text-gray-300 mb-3">Risk</h3>
+        <div class="space-y-3">
+          <div class="flex items-center justify-between gap-4">
+            <label class="text-sm text-gray-400 w-40 flex items-center gap-1">Max drawdown
+              <span class="tip" data-tip="Als het portfolio meer dan dit % daalt t.o.v. de hoogste stand, activeert de circuit breaker: alle posities worden geliquideerd en de bot wacht.">?</span>
+            </label>
+            <div class="flex items-center gap-1">
+              <input id="s-max_drawdown" type="number" min="1" max="50" step="1"
+                class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-100 w-20 text-right focus:outline-none focus:border-emerald-500">
+              <span class="text-gray-500 text-sm">%</span>
+            </div>
+          </div>
+          <div class="flex items-center justify-between gap-4">
+            <label class="text-sm text-gray-400 w-40 flex items-center gap-1">Cooldown days
+              <span class="tip" data-tip="Aantal dagen dat de bot inactief blijft nadat de circuit breaker is geactiveerd. Geeft de markt tijd om te stabiliseren.">?</span>
+            </label>
+            <input id="s-cooldown_days" type="number" min="1" max="30" step="1"
+              class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-100 w-28 text-right focus:outline-none focus:border-emerald-500">
+          </div>
+        </div>
+
+        <h3 class="text-sm font-medium text-gray-300 mt-5 mb-3">Scoring weights
+          <span class="tip normal-case font-normal text-gray-500" data-tip="De vier factoren bepalen samen de score van een ETF. De gewichten moeten optellen tot 1.0. Een hogere waarde geeft die factor meer invloed op de selectie.">?</span>
+        </h3>
+        <div class="space-y-3">
+          <div class="flex items-center justify-between gap-4">
+            <label class="text-sm text-gray-400 w-40 flex items-center gap-1">Momentum
+              <span class="tip" data-tip="Gebaseerd op rendementen over 21, 63 en 126 handelsdagen. ETFs die recent sterk gestegen zijn scoren hoger. Hogere waarde = sterkere voorkeur voor trending ETFs.">?</span>
+            </label>
+            <input id="s-momentum_weight" type="number" min="0" max="1" step="0.05"
+              class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-100 w-28 text-right focus:outline-none focus:border-emerald-500">
+          </div>
+          <div class="flex items-center justify-between gap-4">
+            <label class="text-sm text-gray-400 w-40 flex items-center gap-1">Volatility
+              <span class="tip" data-tip="Gebaseerd op de 63-daagse volatiliteit (lagere volatiliteit = hogere score). Hogere waarde = voorkeur voor stabiele, rustige ETFs.">?</span>
+            </label>
+            <input id="s-volatility_weight" type="number" min="0" max="1" step="0.05"
+              class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-100 w-28 text-right focus:outline-none focus:border-emerald-500">
+          </div>
+          <div class="flex items-center justify-between gap-4">
+            <label class="text-sm text-gray-400 w-40 flex items-center gap-1">Trend
+              <span class="tip" data-tip="Controleert of de prijs boven het 50- en 200-daags voortschrijdend gemiddelde staat. Hogere waarde = alleen kopen als de trend duidelijk omhoog is.">?</span>
+            </label>
+            <input id="s-trend_weight" type="number" min="0" max="1" step="0.05"
+              class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-100 w-28 text-right focus:outline-none focus:border-emerald-500">
+          </div>
+          <div class="flex items-center justify-between gap-4">
+            <label class="text-sm text-gray-400 w-40 flex items-center gap-1">Mean reversion
+              <span class="tip" data-tip="Gebaseerd op de RSI (14 dagen). ETFs die oververkocht zijn (RSI &lt; 30) scoren hoger. Hogere waarde = voorkeur voor ETFs die tijdelijk gedaald zijn.">?</span>
+            </label>
+            <input id="s-mean_reversion_weight" type="number" min="0" max="1" step="0.05"
+              class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-100 w-28 text-right focus:outline-none focus:border-emerald-500">
+          </div>
+        </div>
+      </div>
+
+      <!-- ETF Universe -->
+      <div class="md:col-span-2">
+        <h3 class="text-sm font-medium text-gray-300 mb-1 flex items-center gap-1">ETF Universe
+          <span class="tip normal-case font-normal text-gray-500" data-tip="De ETFs die de bot mag selecteren. Klik om een ETF aan of uit te zetten. De bot scoort alleen ETFs in deze lijst en kiest daaruit de top N.">?</span>
+        </h3>
+        <p class="text-xs text-gray-600 mb-3">SPY=S&amp;P 500 · QQQ=Nasdaq · VTI=US totaal · VEA=Ontwikkeld ex-VS · VWO=Emerging Markets · TLT=Lang. obligaties · GLD=Goud · IEF=Middellange obligaties · LQD=Bedrijfsobligaties · DBC=Grondstoffen</p>
+        <div id="s-etfs" class="flex flex-wrap gap-2"></div>
+      </div>
+
+    </div>
+    <div class="px-5 pb-5 flex gap-3">
+      <button onclick="saveSettings()"
+        class="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium rounded-lg transition-colors">
+        Save settings
+      </button>
+      <button onclick="toggleSettings()"
+        class="px-5 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm font-medium rounded-lg transition-colors">
+        Cancel
+      </button>
+    </div>
   </div>
 
   <!-- Status Cards -->
@@ -32,6 +197,28 @@
     <div class="bg-gray-900 rounded-xl p-5 border border-gray-800">
       <h2 class="text-xs font-medium text-gray-500 uppercase tracking-widest mb-4">Risk Status</h2>
       <div id="risk-content"><div class="text-gray-600 text-sm">Loading...</div></div>
+    </div>
+  </div>
+
+  <!-- P&L + Chart Card -->
+  <div id="pnl-card" class="bg-gray-900 rounded-xl p-5 border border-gray-800 mb-6 hidden">
+    <h2 class="text-xs font-medium text-gray-500 uppercase tracking-widest mb-4">Portfolio Performance</h2>
+    <div class="grid grid-cols-3 gap-4 mb-5">
+      <div>
+        <div class="text-xs text-gray-500 mb-1">Current Value</div>
+        <div id="pnl-current" class="text-xl font-semibold">—</div>
+      </div>
+      <div>
+        <div class="text-xs text-gray-500 mb-1">Initial Capital</div>
+        <div id="pnl-initial" class="text-xl font-semibold text-gray-400">—</div>
+      </div>
+      <div>
+        <div class="text-xs text-gray-500 mb-1">Total P&L</div>
+        <div id="pnl-total" class="text-xl font-semibold">—</div>
+      </div>
+    </div>
+    <div class="relative" style="height:180px">
+      <canvas id="pnl-chart"></canvas>
     </div>
   </div>
 
@@ -353,6 +540,7 @@
           es.close();
           enableButtons();
           loadStatus();
+          loadPortfolioHistory();
         }
       };
 
@@ -430,8 +618,258 @@
       document.getElementById('orders-section').classList.remove('hidden');
     }
 
+    // ── Tooltips ─────────────────────────────────────────────────────────────
+
+    const tooltipEl = document.getElementById('tooltip');
+    document.addEventListener('mouseover', e => {
+      const tip = e.target.closest('.tip');
+      if (!tip) return;
+      tooltipEl.textContent = tip.dataset.tip;
+      tooltipEl.style.opacity = '1';
+    });
+    document.addEventListener('mouseout', e => {
+      if (e.target.closest('.tip')) tooltipEl.style.opacity = '0';
+    });
+    document.addEventListener('mousemove', e => {
+      if (tooltipEl.style.opacity === '0') return;
+      const x = e.clientX + 12;
+      const y = e.clientY + 12;
+      const w = tooltipEl.offsetWidth;
+      tooltipEl.style.left = (x + w > window.innerWidth ? x - w - 24 : x) + 'px';
+      tooltipEl.style.top = y + 'px';
+    });
+
+    // ── Settings ─────────────────────────────────────────────────────────────
+
+    const ALL_ETFS = ['SPY', 'QQQ', 'VTI', 'VEA', 'VWO', 'TLT', 'GLD', 'IEF', 'LQD', 'DBC'];
+    let paperTradingValue = true;
+
+    function toggleSettings() {
+      const panel = document.getElementById('settings-panel');
+      const isHidden = panel.classList.contains('hidden');
+      if (isHidden) {
+        panel.classList.remove('hidden');
+        loadSettingsForm();
+      } else {
+        panel.classList.add('hidden');
+      }
+    }
+
+    function togglePaperTrading() {
+      paperTradingValue = !paperTradingValue;
+      updatePaperTradingButton();
+    }
+
+    function updatePaperTradingButton() {
+      const btn = document.getElementById('s-paper_trading');
+      const knob = document.getElementById('s-paper_trading-knob');
+      if (paperTradingValue) {
+        btn.className = 'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none bg-emerald-600';
+        knob.className = 'inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-6';
+      } else {
+        btn.className = 'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none bg-gray-600';
+        knob.className = 'inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-1';
+      }
+    }
+
+    async function loadSettingsForm() {
+      try {
+        const res = await fetch('/api/settings');
+        const s = await res.json();
+
+        document.getElementById('s-max_capital').value = s.portfolio.max_capital;
+        document.getElementById('s-max_holdings').value = s.portfolio.max_holdings;
+        document.getElementById('s-sizing_method').value = s.portfolio.sizing_method;
+        document.getElementById('s-rebalance_threshold').value = (s.portfolio.rebalance_threshold * 100).toFixed(0);
+        document.getElementById('s-max_drawdown').value = (s.risk.max_drawdown * 100).toFixed(0);
+        document.getElementById('s-cooldown_days').value = s.risk.cooldown_days;
+        document.getElementById('s-momentum_weight').value = s.scoring.momentum_weight;
+        document.getElementById('s-volatility_weight').value = s.scoring.volatility_weight;
+        document.getElementById('s-trend_weight').value = s.scoring.trend_weight;
+        document.getElementById('s-mean_reversion_weight').value = s.scoring.mean_reversion_weight;
+
+        paperTradingValue = s.broker.paper_trading;
+        updatePaperTradingButton();
+
+        const activeEtfs = new Set(s.etfs);
+        const container = document.getElementById('s-etfs');
+        container.innerHTML = ALL_ETFS.map(ticker => {
+          const active = activeEtfs.has(ticker);
+          return `<button type="button" onclick="toggleEtf(this, '${ticker}')"
+            data-ticker="${ticker}" data-active="${active}"
+            class="px-3 py-1 rounded-lg text-sm font-medium border transition-colors ${active
+              ? 'bg-emerald-900 border-emerald-700 text-emerald-300'
+              : 'bg-gray-800 border-gray-700 text-gray-500'}">
+            ${ticker}
+          </button>`;
+        }).join('');
+
+        document.getElementById('settings-save-status').textContent = '';
+      } catch (err) {
+        document.getElementById('settings-save-status').textContent = 'Failed to load settings';
+      }
+    }
+
+    function toggleEtf(btn, ticker) {
+      const active = btn.dataset.active === 'true';
+      btn.dataset.active = String(!active);
+      if (!active) {
+        btn.className = 'px-3 py-1 rounded-lg text-sm font-medium border transition-colors bg-emerald-900 border-emerald-700 text-emerald-300';
+      } else {
+        btn.className = 'px-3 py-1 rounded-lg text-sm font-medium border transition-colors bg-gray-800 border-gray-700 text-gray-500';
+      }
+    }
+
+    async function saveSettings() {
+      const statusEl = document.getElementById('settings-save-status');
+      statusEl.textContent = 'Saving...';
+      statusEl.className = 'text-xs text-gray-400';
+
+      const activeEtfs = Array.from(document.querySelectorAll('#s-etfs button'))
+        .filter(b => b.dataset.active === 'true')
+        .map(b => b.dataset.ticker);
+
+      const body = {
+        etfs: activeEtfs,
+        portfolio: {
+          max_capital: parseFloat(document.getElementById('s-max_capital').value),
+          max_holdings: parseInt(document.getElementById('s-max_holdings').value),
+          sizing_method: document.getElementById('s-sizing_method').value,
+          rebalance_threshold: parseFloat(document.getElementById('s-rebalance_threshold').value) / 100,
+          min_trade_value: 1.0,
+        },
+        scoring: {
+          momentum_weight: parseFloat(document.getElementById('s-momentum_weight').value),
+          volatility_weight: parseFloat(document.getElementById('s-volatility_weight').value),
+          trend_weight: parseFloat(document.getElementById('s-trend_weight').value),
+          mean_reversion_weight: parseFloat(document.getElementById('s-mean_reversion_weight').value),
+        },
+        risk: {
+          max_drawdown: parseFloat(document.getElementById('s-max_drawdown').value) / 100,
+          cooldown_days: parseInt(document.getElementById('s-cooldown_days').value),
+        },
+        broker: {
+          paper_trading: paperTradingValue,
+        },
+      };
+
+      try {
+        const res = await fetch('/api/settings', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(body),
+        });
+        if (res.ok) {
+          statusEl.textContent = 'Saved!';
+          statusEl.className = 'text-xs text-emerald-400';
+          setTimeout(() => {
+            document.getElementById('settings-panel').classList.add('hidden');
+            loadStatus();
+          }, 800);
+        } else {
+          statusEl.textContent = 'Save failed';
+          statusEl.className = 'text-xs text-red-400';
+        }
+      } catch (err) {
+        statusEl.textContent = 'Save failed';
+        statusEl.className = 'text-xs text-red-400';
+      }
+    }
+
+    // ── Portfolio History Chart ───────────────────────────────────────────────
+
+    let pnlChart = null;
+
+    async function loadPortfolioHistory() {
+      try {
+        const res = await fetch('/api/portfolio-history');
+        const data = await res.json();
+        if (!data || data.length === 0) return;
+
+        document.getElementById('pnl-card').classList.remove('hidden');
+
+        const latest = data[data.length - 1];
+        const initialCapital = latest.initial_capital;
+        const currentValue = latest.portfolio_value;
+        const pnl = currentValue - initialCapital;
+        const pnlPct = (pnl / initialCapital * 100);
+        const isPositive = pnl >= 0;
+
+        document.getElementById('pnl-current').textContent =
+          '$' + currentValue.toLocaleString('en-US', {minimumFractionDigits: 2});
+        document.getElementById('pnl-initial').textContent =
+          '$' + initialCapital.toLocaleString('en-US', {minimumFractionDigits: 2});
+        document.getElementById('pnl-total').innerHTML =
+          `<span class="${isPositive ? 'text-emerald-400' : 'text-red-400'}">` +
+          `${isPositive ? '+' : ''}$${pnl.toFixed(2)} (${isPositive ? '+' : ''}${pnlPct.toFixed(2)}%)` +
+          `</span>`;
+
+        const labels = data.map(d => {
+          const dt = new Date(d.timestamp);
+          return dt.toLocaleDateString('nl-NL', {month: 'short', day: 'numeric'});
+        });
+        const values = data.map(d => d.portfolio_value);
+
+        const ctx = document.getElementById('pnl-chart').getContext('2d');
+        if (pnlChart) pnlChart.destroy();
+        pnlChart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [
+              {
+                label: 'Portfolio Value',
+                data: values,
+                borderColor: '#10b981',
+                backgroundColor: 'rgba(16,185,129,0.08)',
+                borderWidth: 2,
+                pointRadius: data.length > 30 ? 0 : 3,
+                pointHoverRadius: 5,
+                fill: true,
+                tension: 0.3,
+              },
+              {
+                label: 'Initial Capital',
+                data: data.map(() => initialCapital),
+                borderColor: '#4b5563',
+                borderWidth: 1,
+                borderDash: [4, 4],
+                pointRadius: 0,
+                fill: false,
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: ctx => '$' + ctx.parsed.y.toFixed(2)
+                }
+              }
+            },
+            scales: {
+              x: {
+                ticks: { color: '#6b7280', font: {size: 11}, maxTicksLimit: 8 },
+                grid: { color: '#1f2937' }
+              },
+              y: {
+                ticks: { color: '#6b7280', font: {size: 11}, callback: v => '$' + v.toFixed(0) },
+                grid: { color: '#1f2937' }
+              }
+            }
+          }
+        });
+      } catch (err) {
+        // silently skip if no history yet
+      }
+    }
+
     // ── Init ──────────────────────────────────────────────────────────────────
     loadStatus();
+    loadPortfolioHistory();
   </script>
 </body>
 </html>

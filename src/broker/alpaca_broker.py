@@ -58,7 +58,7 @@ class AlpacaBroker:
             for p in positions
         }
 
-    def submit_order(self, ticker: str, side: str, notional: float) -> dict | None:
+    def submit_order(self, ticker: str, side: str, notional: float, full_exit: bool = False) -> dict | None:
         if side == "sell" and self._is_day_trade(ticker):
             used = self._count_day_trades_this_window()
             if used >= PDT_MAX_DAY_TRADES:
@@ -70,13 +70,17 @@ class AlpacaBroker:
                 return None
 
         logger.info(f"Submitting {side} ${notional:.2f} of {ticker}")
-        order = self.api.submit_order(
-            symbol=ticker,
-            notional=round(notional, 2),
-            side=side,
-            type="market",
-            time_in_force="day",
-        )
+
+        if side == "sell" and full_exit:
+            order = self.api.close_position(ticker)
+        else:
+            order = self.api.submit_order(
+                symbol=ticker,
+                notional=round(notional, 2),
+                side=side,
+                type="market",
+                time_in_force="day",
+            )
         self._log_trade(ticker, side, notional)
         return {"id": order.id, "status": order.status, "symbol": order.symbol}
 

@@ -4,7 +4,7 @@ import typer
 
 from src.broker.alpaca_broker import AlpacaBroker
 from src.config import load_config, setup_logging
-from src.core.portfolio import compute_target_weights, generate_orders, needs_rebalance
+from src.core.portfolio import compute_target_weights, generate_orders, needs_rebalance, record_snapshot
 from src.core.risk import DrawdownMonitor
 from src.core.scorer import rank_etfs
 from src.data.market_data import fetch_prices
@@ -63,14 +63,16 @@ def _run_cycle(config: dict) -> None:
 
     # 2. Get account info and apply capital limit
     account = broker.get_account()
-    max_capital = config["portfolio"].get("max_capital", account.equity)
+    initial_capital = config["portfolio"].get("max_capital", account.equity)
     positions = broker.get_positions()
     invested = sum(p.market_value for p in positions.values())
-    budget = min(max_capital, invested + account.cash)
+    # Reinvest profits: use actual portfolio value as budget once positions exist
+    budget = invested if invested > 0 else initial_capital
     logger.info(
         f"Account equity: ${account.equity:.2f}, "
-        f"budget: ${budget:.2f} (max: ${max_capital:.2f})"
+        f"budget: ${budget:.2f} (initial: ${initial_capital:.2f})"
     )
+    record_snapshot(budget, initial_capital)
 
     # 3. Check circuit breaker
     from datetime import date
@@ -117,8 +119,15 @@ def _run_cycle(config: dict) -> None:
         current_values, target_weights, budget, config["portfolio"]["min_trade_value"]
     )
 
-    for order in orders:
-        broker.submit_order(order.ticker, order.side, order.notional)
+    import time
+    sells = [o for o in orders if o.side == "sell"]
+    buys = [o for o in orders if o.side == "buy"]
+    for order in sells:
+        broker.submit_order(order.ticker, order.side, order.notional, order.full_exit)
+    if sells and buys:
+        time.sleep(2)
+    for order in buys:
+        broker.submit_order(order.ticker, order.side, order.notional, order.full_exit)
 
     logger.info(f"Executed {len(orders)} orders")
     logger.info("=== Daily run complete ===")

@@ -7,13 +7,14 @@ from datetime import date
 from pathlib import Path
 from typing import AsyncIterator
 
-from fastapi import FastAPI
+import yaml
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse
 
 from src.ai.explainer import build_prompt
 from src.broker.alpaca_broker import AlpacaBroker
 from src.config import load_config
-from src.core.portfolio import compute_target_weights, generate_orders, needs_rebalance
+from src.core.portfolio import compute_target_weights, generate_orders, needs_rebalance, record_snapshot
 from src.core.risk import DrawdownMonitor
 from src.core.scorer import rank_etfs
 from src.data.market_data import fetch_prices, fetch_macro
@@ -22,6 +23,15 @@ app = FastAPI(title="TraderBot")
 logger = logging.getLogger(__name__)
 
 _STATIC = os.path.join(os.path.dirname(__file__), "static")
+_CONFIG_PATH = Path(__file__).resolve().parent.parent.parent / "config" / "settings.yaml"
+
+_SETTINGS_ALLOWED = {
+    "etfs": None,  # full list replacement
+    "portfolio": {"max_capital", "max_holdings", "sizing_method", "rebalance_threshold", "min_trade_value"},
+    "scoring": {"momentum_weight", "volatility_weight", "trend_weight", "mean_reversion_weight"},
+    "risk": {"max_drawdown", "cooldown_days"},
+    "broker": {"paper_trading"},
+}
 
 
 def _load_risk_state() -> dict:
@@ -101,9 +111,9 @@ def status():
         )
         account = broker.get_account()
         positions = broker.get_positions()
-        max_capital = config["portfolio"].get("max_capital", account.equity)
+        initial_capital = config["portfolio"].get("max_capital", account.equity)
         invested = sum(p.market_value for p in positions.values())
-        budget = min(max_capital, invested + account.cash)
+        budget = invested if invested > 0 else initial_capital
 
         risk_state = _load_risk_state()
         peak = risk_state.get("peak_equity", budget)
@@ -114,7 +124,7 @@ def status():
             "equity": round(account.equity, 2),
             "cash": round(account.cash, 2),
             "budget": round(budget, 2),
-            "max_capital": max_capital,
+            "max_capital": initial_capital,
             "paper_trading": config["broker"]["paper_trading"],
             "positions": [
                 {
@@ -156,9 +166,9 @@ async def analyze():
             )
             account = broker.get_account()
             positions = broker.get_positions()
-            max_capital = config["portfolio"].get("max_capital", account.equity)
+            initial_capital = config["portfolio"].get("max_capital", account.equity)
             invested = sum(p.market_value for p in positions.values())
-            budget = min(max_capital, invested + account.cash)
+            budget = invested if invested > 0 else initial_capital
         except Exception:
             logger.exception("Broker error in analyze")
             yield sse({"type": "error", "message": "Broker connection failed. Check the logs."})
@@ -249,9 +259,10 @@ async def run_cycle():
             )
             account = broker.get_account()
             positions = broker.get_positions()
-            max_capital = config["portfolio"].get("max_capital", account.equity)
+            initial_capital = config["portfolio"].get("max_capital", account.equity)
             invested = sum(p.market_value for p in positions.values())
-            budget = min(max_capital, invested + account.cash)
+            budget = invested if invested > 0 else initial_capital
+            record_snapshot(budget, initial_capital)
         except Exception:
             logger.exception("Broker error in run")
             yield sse({"type": "error", "message": "Broker connection failed. Check the logs."})
@@ -307,11 +318,28 @@ async def run_cycle():
             current_values, target_weights, budget, config["portfolio"]["min_trade_value"]
         )
 
+        sells = [o for o in orders if o.side == "sell"]
+        buys = [o for o in orders if o.side == "buy"]
+
         yield sse({"type": "status", "message": f"Executing {len(orders)} orders..."})
         executed = 0
-        for order in orders:
+        for order in sells:
             try:
-                result = broker.submit_order(order.ticker, order.side, order.notional)
+                result = broker.submit_order(order.ticker, order.side, order.notional, order.full_exit)
+                if result:
+                    executed += 1
+                    yield sse({"type": "order", "ticker": order.ticker, "side": order.side, "notional": order.notional})
+            except Exception:
+                logger.exception(f"Order failed: {order.ticker}")
+                yield sse({"type": "warning", "message": f"Order failed for {order.ticker} — check logs."})
+
+        if sells and buys:
+            import time
+            time.sleep(2)
+
+        for order in buys:
+            try:
+                result = broker.submit_order(order.ticker, order.side, order.notional, order.full_exit)
                 if result:
                     executed += 1
                     yield sse({"type": "order", "ticker": order.ticker, "side": order.side, "notional": order.notional})
@@ -322,3 +350,53 @@ async def run_cycle():
         yield sse({"type": "done", "orders_executed": executed, "message": f"Trading cycle complete — {executed} orders executed."})
 
     return StreamingResponse(stream(), media_type="text/event-stream")
+
+
+@app.get("/api/settings")
+def get_settings():
+    with open(_CONFIG_PATH) as f:
+        config = yaml.safe_load(f)
+    config.get("broker", {}).pop("api_key", None)
+    config.get("broker", {}).pop("secret_key", None)
+    return config
+
+
+@app.post("/api/settings")
+def save_settings(body: dict):
+    try:
+        with open(_CONFIG_PATH) as f:
+            config = yaml.safe_load(f)
+
+        for section, allowed_fields in _SETTINGS_ALLOWED.items():
+            if section not in body:
+                continue
+            if allowed_fields is None:
+                config[section] = body[section]
+            else:
+                for field in allowed_fields:
+                    if field in body.get(section, {}):
+                        config[section][field] = body[section][field]
+
+        with open(_CONFIG_PATH, "w") as f:
+            yaml.dump(config, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
+
+        return {"ok": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/portfolio-history")
+def portfolio_history():
+    import csv as csv_module
+    path = Path("logs/portfolio_history.csv")
+    if not path.exists():
+        return []
+    rows = []
+    with open(path) as f:
+        for row in csv_module.DictReader(f):
+            rows.append({
+                "timestamp": row["timestamp"],
+                "portfolio_value": float(row["portfolio_value"]),
+                "initial_capital": float(row["initial_capital"]),
+            })
+    return rows
