@@ -14,6 +14,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from src.ai.explainer import build_prompt
 from src.broker.alpaca_broker import AlpacaBroker
 from src.config import load_config
+from src.broker.alpaca_broker import AlpacaBroker, load_bot_cash
 from src.core.portfolio import compute_target_weights, generate_orders, needs_rebalance, record_snapshot
 from src.core.risk import DrawdownMonitor
 from src.core.scorer import rank_etfs
@@ -113,7 +114,8 @@ def status():
         positions = broker.get_positions()
         initial_capital = config["portfolio"].get("max_capital", account.equity)
         invested = sum(p.market_value for p in positions.values())
-        budget = invested if invested > 0 else initial_capital
+        bot_cash = load_bot_cash()
+        budget = (invested + bot_cash) if (invested + bot_cash) > 0 else initial_capital
 
         risk_state = _load_risk_state()
         peak = risk_state.get("peak_equity", budget)
@@ -168,7 +170,8 @@ async def analyze():
             positions = broker.get_positions()
             initial_capital = config["portfolio"].get("max_capital", account.equity)
             invested = sum(p.market_value for p in positions.values())
-            budget = invested if invested > 0 else initial_capital
+            bot_cash = load_bot_cash()
+        budget = (invested + bot_cash) if (invested + bot_cash) > 0 else initial_capital
         except Exception:
             logger.exception("Broker error in analyze")
             yield sse({"type": "error", "message": "Broker connection failed. Check the logs."})
@@ -261,7 +264,8 @@ async def run_cycle():
             positions = broker.get_positions()
             initial_capital = config["portfolio"].get("max_capital", account.equity)
             invested = sum(p.market_value for p in positions.values())
-            budget = invested if invested > 0 else initial_capital
+            bot_cash = load_bot_cash()
+        budget = (invested + bot_cash) if (invested + bot_cash) > 0 else initial_capital
             record_snapshot(budget, initial_capital)
         except Exception:
             logger.exception("Broker error in run")

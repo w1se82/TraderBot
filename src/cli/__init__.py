@@ -2,7 +2,7 @@ import logging
 
 import typer
 
-from src.broker.alpaca_broker import AlpacaBroker
+from src.broker.alpaca_broker import AlpacaBroker, load_bot_cash
 from src.config import load_config, setup_logging
 from src.core.portfolio import compute_target_weights, generate_orders, needs_rebalance, record_snapshot
 from src.core.risk import DrawdownMonitor
@@ -66,8 +66,8 @@ def _run_cycle(config: dict) -> None:
     initial_capital = config["portfolio"].get("max_capital", account.equity)
     positions = broker.get_positions()
     invested = sum(p.market_value for p in positions.values())
-    # Reinvest profits: use actual portfolio value as budget once positions exist
-    budget = invested if invested > 0 else initial_capital
+    bot_cash = load_bot_cash()
+    budget = (invested + bot_cash) if (invested + bot_cash) > 0 else initial_capital
     logger.info(
         f"Account equity: ${account.equity:.2f}, "
         f"budget: ${budget:.2f} (initial: ${initial_capital:.2f})"

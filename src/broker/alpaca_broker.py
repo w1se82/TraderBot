@@ -1,4 +1,5 @@
 import csv
+import json
 import logging
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
@@ -12,6 +13,20 @@ PDT_MAX_DAY_TRADES = 3
 PDT_WINDOW_DAYS = 5
 
 TRADE_LOG = Path(__file__).resolve().parent.parent.parent / "logs" / "trades.csv"
+BOT_STATE = Path(__file__).resolve().parent.parent.parent / "logs" / "bot_state.json"
+
+
+def load_bot_cash() -> float:
+    if BOT_STATE.exists():
+        with open(BOT_STATE) as f:
+            return float(json.load(f).get("bot_cash", 0.0))
+    return 0.0
+
+
+def _save_bot_cash(amount: float) -> None:
+    BOT_STATE.parent.mkdir(parents=True, exist_ok=True)
+    with open(BOT_STATE, "w") as f:
+        json.dump({"bot_cash": round(max(0.0, amount), 2)}, f)
 
 
 @dataclass
@@ -134,3 +149,10 @@ class AlpacaBroker:
             if write_header:
                 writer.writerow(["timestamp", "ticker", "side", "notional"])
             writer.writerow([datetime.now().isoformat(), ticker, side, f"{notional:.2f}"])
+
+        bot_cash = load_bot_cash()
+        if side == "sell":
+            bot_cash += notional
+        elif side == "buy":
+            bot_cash -= notional
+        _save_bot_cash(bot_cash)
