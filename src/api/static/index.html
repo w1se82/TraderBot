@@ -64,21 +64,21 @@
         <div class="space-y-3">
           <div class="flex items-center justify-between gap-4">
             <label class="text-sm text-gray-400 w-40 flex items-center gap-1">Initial capital ($)
-              <span class="tip" data-tip="Het bedrag dat de bot maximaal investeert bij de eerste run. Winst bovenop dit bedrag wordt automatisch herinvesteerd in volgende cycles.">?</span>
+              <span class="tip" data-tip="The amount the bot invests on the first run. Any profits above this amount are automatically reinvested in subsequent cycles.">?</span>
             </label>
             <input id="s-max_capital" type="number" min="1" step="50"
               class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-100 w-28 text-right focus:outline-none focus:border-emerald-500">
           </div>
           <div class="flex items-center justify-between gap-4">
             <label class="text-sm text-gray-400 w-40 flex items-center gap-1">Max holdings
-              <span class="tip" data-tip="Hoeveel ETFs gelijktijdig aangehouden worden. De bot kiest altijd de top N best scorende ETFs uit het universum.">?</span>
+              <span class="tip" data-tip="How many ETFs are held simultaneously. The bot always picks the top N highest-scoring ETFs from the universe.">?</span>
             </label>
             <input id="s-max_holdings" type="number" min="1" max="10" step="1"
               class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-100 w-28 text-right focus:outline-none focus:border-emerald-500">
           </div>
           <div class="flex items-center justify-between gap-4">
             <label class="text-sm text-gray-400 w-40 flex items-center gap-1">Sizing method
-              <span class="tip" data-tip="Equal weight: elk ETF krijgt een gelijk deel van het budget. Score proportional: hogere scorers krijgen een groter deel — winnaars worden zwaarder gewogen.">?</span>
+              <span class="tip" data-tip="Equal weight: each ETF gets an equal share of the budget. Score proportional: higher-scoring ETFs get a larger allocation — winners are weighted more heavily.">?</span>
             </label>
             <select id="s-sizing_method"
               class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-100 w-44 focus:outline-none focus:border-emerald-500">
@@ -88,7 +88,7 @@
           </div>
           <div class="flex items-center justify-between gap-4">
             <label class="text-sm text-gray-400 w-40 flex items-center gap-1">Rebalance threshold
-              <span class="tip" data-tip="De bot herbalanceert alleen als een positie meer dan dit % afwijkt van het doel. Lager = vaker handelen, hoger = minder transactiekosten.">?</span>
+              <span class="tip" data-tip="The bot only rebalances if a position deviates more than this % from its target. Lower = more frequent trades, higher = fewer transaction costs.">?</span>
             </label>
             <div class="flex items-center gap-1">
               <input id="s-rebalance_threshold" type="number" min="1" max="50" step="1"
@@ -98,7 +98,7 @@
           </div>
           <div class="flex items-center justify-between gap-4">
             <label class="text-sm text-gray-400 w-40 flex items-center gap-1">Paper trading
-              <span class="tip" data-tip="Simulatiemodus: orders worden niet echt uitgevoerd bij Alpaca. Altijd eerst testen in paper mode voordat je live gaat.">?</span>
+              <span class="tip" data-tip="Simulation mode: orders are not actually executed at Alpaca. Always test in paper mode before going live.">?</span>
             </label>
             <button id="s-paper_trading" onclick="togglePaperTrading()"
               class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none">
@@ -114,7 +114,7 @@
         <div class="space-y-3">
           <div class="flex items-center justify-between gap-4">
             <label class="text-sm text-gray-400 w-40 flex items-center gap-1">Max drawdown
-              <span class="tip" data-tip="Als het portfolio meer dan dit % daalt t.o.v. de hoogste stand, activeert de circuit breaker: alle posities worden geliquideerd en de bot wacht.">?</span>
+              <span class="tip" data-tip="If the portfolio drops more than this % from its peak, the circuit breaker triggers: all positions are liquidated and the bot pauses.">?</span>
             </label>
             <div class="flex items-center gap-1">
               <input id="s-max_drawdown" type="number" min="1" max="50" step="1"
@@ -124,41 +124,39 @@
           </div>
           <div class="flex items-center justify-between gap-4">
             <label class="text-sm text-gray-400 w-40 flex items-center gap-1">Cooldown days
-              <span class="tip" data-tip="Aantal dagen dat de bot inactief blijft nadat de circuit breaker is geactiveerd. Geeft de markt tijd om te stabiliseren.">?</span>
+              <span class="tip" data-tip="Number of days the bot stays inactive after the circuit breaker triggers. Gives the market time to stabilize.">?</span>
             </label>
             <input id="s-cooldown_days" type="number" min="1" max="30" step="1"
               class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-100 w-28 text-right focus:outline-none focus:border-emerald-500">
           </div>
         </div>
 
-        <h3 class="text-sm font-medium text-gray-300 mt-5 mb-3">Scoring weights
-          <span class="tip normal-case font-normal text-gray-500" data-tip="De vier factoren bepalen samen de score van een ETF. De gewichten moeten optellen tot 1.0. Een hogere waarde geeft die factor meer invloed op de selectie.">?</span>
-        </h3>
+        <h3 class="text-sm font-medium text-gray-300 mt-5 mb-3 flex items-center gap-1">Scoring weights <span class="tip normal-case font-normal" data-tip="The four factors together determine each ETF's score. Weights should sum to 1.0. A higher value gives that factor more influence on selection.">?</span></h3>
         <div class="space-y-3">
           <div class="flex items-center justify-between gap-4">
             <label class="text-sm text-gray-400 w-40 flex items-center gap-1">Momentum
-              <span class="tip" data-tip="Gebaseerd op rendementen over 21, 63 en 126 handelsdagen. ETFs die recent sterk gestegen zijn scoren hoger. Hogere waarde = sterkere voorkeur voor trending ETFs.">?</span>
+              <span class="tip" data-tip="Based on returns over 21, 63, and 126 trading days. ETFs with strong recent price gains score higher. Higher weight = stronger preference for trending ETFs.">?</span>
             </label>
             <input id="s-momentum_weight" type="number" min="0" max="1" step="0.05"
               class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-100 w-28 text-right focus:outline-none focus:border-emerald-500">
           </div>
           <div class="flex items-center justify-between gap-4">
             <label class="text-sm text-gray-400 w-40 flex items-center gap-1">Volatility
-              <span class="tip" data-tip="Gebaseerd op de 63-daagse volatiliteit (lagere volatiliteit = hogere score). Hogere waarde = voorkeur voor stabiele, rustige ETFs.">?</span>
+              <span class="tip" data-tip="Based on 63-day annualized volatility (lower volatility = higher score). Higher weight = preference for stable, low-risk ETFs.">?</span>
             </label>
             <input id="s-volatility_weight" type="number" min="0" max="1" step="0.05"
               class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-100 w-28 text-right focus:outline-none focus:border-emerald-500">
           </div>
           <div class="flex items-center justify-between gap-4">
             <label class="text-sm text-gray-400 w-40 flex items-center gap-1">Trend
-              <span class="tip" data-tip="Controleert of de prijs boven het 50- en 200-daags voortschrijdend gemiddelde staat. Hogere waarde = alleen kopen als de trend duidelijk omhoog is.">?</span>
+              <span class="tip" data-tip="Checks whether the price is above the 50- and 200-day moving averages. Higher weight = only buy when the trend is clearly upward.">?</span>
             </label>
             <input id="s-trend_weight" type="number" min="0" max="1" step="0.05"
               class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-100 w-28 text-right focus:outline-none focus:border-emerald-500">
           </div>
           <div class="flex items-center justify-between gap-4">
             <label class="text-sm text-gray-400 w-40 flex items-center gap-1">Mean reversion
-              <span class="tip" data-tip="Gebaseerd op de RSI (14 dagen). ETFs die oververkocht zijn (RSI &lt; 30) scoren hoger. Hogere waarde = voorkeur voor ETFs die tijdelijk gedaald zijn.">?</span>
+              <span class="tip" data-tip="Based on RSI (14 days). Oversold ETFs (RSI &lt; 30) score higher. Higher weight = preference for ETFs that have temporarily pulled back.">?</span>
             </label>
             <input id="s-mean_reversion_weight" type="number" min="0" max="1" step="0.05"
               class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-100 w-28 text-right focus:outline-none focus:border-emerald-500">
@@ -168,10 +166,8 @@
 
       <!-- ETF Universe -->
       <div class="md:col-span-2">
-        <h3 class="text-sm font-medium text-gray-300 mb-1 flex items-center gap-1">ETF Universe
-          <span class="tip normal-case font-normal text-gray-500" data-tip="De ETFs die de bot mag selecteren. Klik om een ETF aan of uit te zetten. De bot scoort alleen ETFs in deze lijst en kiest daaruit de top N.">?</span>
-        </h3>
-        <p class="text-xs text-gray-600 mb-3">SPY=S&amp;P 500 · QQQ=Nasdaq · VTI=US totaal · VEA=Ontwikkeld ex-VS · VWO=Emerging Markets · TLT=Lang. obligaties · GLD=Goud · IEF=Middellange obligaties · LQD=Bedrijfsobligaties · DBC=Grondstoffen</p>
+        <h3 class="text-sm font-medium text-gray-300 mb-1 flex items-center gap-1">ETF Universe <span class="tip normal-case font-normal" data-tip="The ETFs the bot is allowed to select from. Click to toggle an ETF on or off. The bot only scores ETFs in this list and picks the top N from it.">?</span></h3>
+        <p class="text-xs text-gray-600 mb-3">SPY=S&amp;P 500 · QQQ=Nasdaq 100 · VTI=US Total Market · VEA=Developed ex-US · VWO=Emerging Markets · TLT=Long-term Treasuries · GLD=Gold · IEF=Mid-term Treasuries · LQD=Corp. Bonds · DBC=Commodities</p>
         <div id="s-etfs" class="flex flex-wrap gap-2"></div>
       </div>
 
