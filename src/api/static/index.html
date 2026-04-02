@@ -39,6 +39,14 @@
     </div>
     <div class="flex items-center gap-3">
       <div id="mode-badge" class="text-xs px-3 py-1 rounded-full bg-gray-800 text-gray-400">Loading...</div>
+      <button id="run-btn" onclick="runTradingCycle()"
+        class="px-4 py-2 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        Execute
+      </button>
       <button onclick="toggleSettings()" title="Settings"
         class="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors text-gray-400 hover:text-gray-200">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -233,25 +241,6 @@
     <div id="positions-content"></div>
   </div>
 
-  <!-- Action Buttons -->
-  <div class="flex justify-center gap-4 mb-6">
-    <button id="analyze-btn" onclick="runAnalysis()"
-      class="px-8 py-3 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-      </svg>
-      Run Analysis
-    </button>
-    <button id="run-btn" onclick="runTradingCycle()"
-      class="px-8 py-3 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-      </svg>
-      Execute Trading Cycle
-    </button>
-  </div>
-
   <!-- Status message -->
   <div id="status-msg" class="hidden flex items-center gap-2 text-sm text-gray-400 justify-center mb-6">
     <svg class="spinner w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24">
@@ -344,7 +333,7 @@
     }
 
     function disableButtons() {
-      ['analyze-btn', 'run-btn'].forEach(id => {
+      ['run-btn'].forEach(id => {
         const btn = document.getElementById(id);
         btn.disabled = true;
         btn.classList.add('opacity-50', 'cursor-not-allowed');
@@ -352,7 +341,7 @@
     }
 
     function enableButtons() {
-      ['analyze-btn', 'run-btn'].forEach(id => {
+      ['run-btn'].forEach(id => {
         const btn = document.getElementById(id);
         btn.disabled = false;
         btn.classList.remove('opacity-50', 'cursor-not-allowed');
