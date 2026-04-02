@@ -334,13 +334,14 @@ async def run_cycle():
                 logger.exception(f"Order failed: {order.ticker}")
                 yield sse({"type": "warning", "message": f"Order failed for {order.ticker} — check logs."})
 
-        if sells and buys:
-            await asyncio.sleep(5)
+        if buys:
+            if sells:
+                await asyncio.sleep(5)
             account = broker.get_account()
-            available_cash = account.cash
+            available = account.buying_power * 0.99  # 1% buffer
             total_buy = sum(o.notional for o in buys)
-            if total_buy > available_cash > 0:
-                scale = available_cash / total_buy
+            if total_buy > available > 0:
+                scale = available / total_buy
                 for o in buys:
                     o.notional = math.floor(o.notional * scale * 100) / 100
 

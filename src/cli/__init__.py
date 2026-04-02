@@ -195,13 +195,14 @@ def _run_cycle(config: dict) -> None:
     buys = [o for o in orders if o.side == "buy"]
     for order in sells:
         broker.submit_order(order.ticker, order.side, order.notional, order.full_exit)
-    if sells and buys:
-        time.sleep(5)
+    if buys:
+        if sells:
+            time.sleep(5)
         account = broker.get_account()
-        available_cash = account.cash
+        available = account.buying_power * 0.99  # 1% buffer
         total_buy = sum(o.notional for o in buys)
-        if total_buy > available_cash > 0:
-            scale = available_cash / total_buy
+        if total_buy > available > 0:
+            scale = available / total_buy
             for o in buys:
                 o.notional = math.floor(o.notional * scale * 100) / 100
     for order in buys:
