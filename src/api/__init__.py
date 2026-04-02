@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import math
 import os
 import shutil
 from datetime import date
@@ -334,8 +335,14 @@ async def run_cycle():
                 yield sse({"type": "warning", "message": f"Order failed for {order.ticker} — check logs."})
 
         if sells and buys:
-            import time
-            time.sleep(2)
+            await asyncio.sleep(5)
+            account = broker.get_account()
+            available_cash = account.cash
+            total_buy = sum(o.notional for o in buys)
+            if total_buy > available_cash > 0:
+                scale = available_cash / total_buy
+                for o in buys:
+                    o.notional = math.floor(o.notional * scale * 100) / 100
 
         for order in buys:
             try:

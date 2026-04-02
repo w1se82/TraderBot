@@ -1,5 +1,6 @@
 import json
 import logging
+import math
 from datetime import date
 from pathlib import Path
 
@@ -195,7 +196,14 @@ def _run_cycle(config: dict) -> None:
     for order in sells:
         broker.submit_order(order.ticker, order.side, order.notional, order.full_exit)
     if sells and buys:
-        time.sleep(2)
+        time.sleep(5)
+        account = broker.get_account()
+        available_cash = account.cash
+        total_buy = sum(o.notional for o in buys)
+        if total_buy > available_cash > 0:
+            scale = available_cash / total_buy
+            for o in buys:
+                o.notional = math.floor(o.notional * scale * 100) / 100
     for order in buys:
         broker.submit_order(order.ticker, order.side, order.notional, order.full_exit)
 
