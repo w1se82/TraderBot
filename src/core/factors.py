@@ -13,15 +13,26 @@ def momentum_score(close: pd.Series, windows: list[int], weights: list[float]) -
     return sum(r * w for r, w in zip(returns, weights))
 
 
-def volatility_score(close: pd.Series, window: int = 63) -> float:
-    if len(close) < window:
+def volatility_score(close: pd.Series, window_short: int = 21, window_long: int = 126) -> float:
+    """Returns ratio of recent volatility to historical volatility.
+
+    ratio < 1 means the asset is currently calmer than its own norm (good).
+    ratio > 1 means the asset is currently more volatile than usual (bad).
+    Caller should invert for scoring (low ratio = high score).
+    Using relative vol removes the structural bias toward low-volatility
+    asset classes like bonds.
+    """
+    if len(close) < window_long:
         return np.nan
     daily_returns = close.pct_change().dropna()
-    vol = daily_returns.rolling(window).std().iloc[-1] * np.sqrt(252)
-    return vol
+    vol_short = daily_returns.rolling(window_short).std().iloc[-1]
+    vol_long = daily_returns.rolling(window_long).std().iloc[-1]
+    if vol_long == 0:
+        return np.nan
+    return vol_short / vol_long
 
 
-def trend_score(close: pd.Series, sma_short: int = 50, sma_long: int = 200) -> float:
+def trend_score(close: pd.Series, sma_long: int = 200) -> float:
     """Returns continuous trend strength: how far price sits above/below the long-term SMA.
 
     Raw return value (positive = above SMA200, negative = below). Caller is

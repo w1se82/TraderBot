@@ -85,9 +85,10 @@ def main(ctx: typer.Context):
     typer.echo("  2. serve    — start web dashboard")
     typer.echo("  3. status   — show portfolio status")
     typer.echo("  4. snapshot — record portfolio value")
+    typer.echo("  5. guard    — intraday circuit breaker check")
     typer.echo()
 
-    choice = typer.prompt("  Choose [1/2/3/4]").strip()
+    choice = typer.prompt("  Choose [1/2/3/4/5]").strip()
 
     if choice in ("1", "run"):
         ctx.invoke(run)
@@ -97,6 +98,8 @@ def main(ctx: typer.Context):
         ctx.invoke(status)
     elif choice in ("4", "snapshot"):
         ctx.invoke(snapshot)
+    elif choice in ("5", "guard"):
+        ctx.invoke(guard)
     else:
         typer.echo("Invalid choice.", err=True)
         raise typer.Exit(1)
@@ -294,3 +297,38 @@ def status():
             typer.echo(f"  {etf.ticker:<6} composite={etf.composite:.3f}")
 
     typer.echo()
+
+
+@app.command()
+def guard():
+    """Intraday circuit breaker check — liquidates if drawdown exceeds threshold.
+
+    Run hourly via cron during market hours (e.g. every hour 15:00–22:00 CET Mon-Fri).
+    Does not rebalance — only protects against large intraday moves.
+    """
+    config = load_config()
+    setup_logging(config)
+
+    broker = AlpacaBroker(
+        api_key=config["broker"]["api_key"],
+        secret_key=config["broker"]["secret_key"],
+        paper=config["broker"]["paper_trading"],
+    )
+
+    account = broker.get_account()
+    risk_cfg = config["risk"]
+    monitor = DrawdownMonitor(
+        max_drawdown=risk_cfg["max_drawdown"],
+        cooldown_days=risk_cfg["cooldown_days"],
+    )
+    trading_allowed = monitor.update(account.equity, date.today())
+
+    if not trading_allowed:
+        logger.critical(
+            f"GUARD: circuit breaker tripped at ${account.equity:.2f} — liquidating all positions"
+        )
+        broker.liquidate_all()
+        _save_hold_state({})
+        typer.echo(f"Circuit breaker tripped — liquidated all positions (equity ${account.equity:.2f})")
+    else:
+        logger.info(f"GUARD: equity ${account.equity:.2f} — no action needed")

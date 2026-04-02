@@ -29,8 +29,8 @@ _CONFIG_PATH = Path(__file__).resolve().parent.parent.parent / "config" / "setti
 
 _SETTINGS_ALLOWED = {
     "etfs": None,  # full list replacement
-    "portfolio": {"max_capital", "max_holdings", "sizing_method", "rebalance_threshold", "min_trade_value"},
-    "scoring": {"momentum_weight", "volatility_weight", "trend_weight", "mean_reversion_weight"},
+    "portfolio": {"max_holdings", "sizing_method", "rebalance_threshold"},
+    "scoring": {"momentum_weight", "volatility_weight", "trend_weight"},
     "risk": {"max_drawdown", "cooldown_days"},
     "broker": {"paper_trading"},
 }

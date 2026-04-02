@@ -8,9 +8,9 @@ The bot ranks ETFs based on three configurable factors. All factors are cross-se
 
 | Factor | Default Weight | What it measures |
 |--------|---------------|-----------------|
-| Momentum | 40% | Weighted average of 1m, 3m, and 6m returns |
-| Volatility | 30% | 3-month annualized vol (lower = better) |
-| Trend | 30% | Distance of price above/below the 200-day SMA |
+| Momentum | 30% | Weighted average of 1m, 3m, and 6m returns |
+| Volatility | 30% | Ratio of 21-day vol to 126-day vol — rewards assets calmer than their own norm |
+| Trend | 40% | Distance of price above/below the 200-day SMA |
 
 The top N ETFs (default 3) are held using score-proportional sizing. Rebalancing only occurs when a position drifts more than the configured threshold (default 5%) from its target.
 
@@ -38,8 +38,10 @@ Configurable via the dashboard or `settings.yaml`. Default set:
 - **Drawdown circuit breaker**: liquidates all positions if the portfolio drops more than the configured threshold (default 15%) from its peak
 - **Cooldown**: stays in cash for N days (default 5) after a trip, then resets
 - **Hold protection**: prevents replacing a position held less than `min_hold_days` (default 5), avoiding score-noise-driven churn
-- **Rebalance threshold**: prevents unnecessary small trades
+- **Rebalance threshold**: 8% drift before rebalancing (prevents unnecessary small trades)
+- **Minimum trade value**: $25 — filters out sub-threshold order noise
 - **Buying power cap**: buy notionals are always capped to `buying_power × 0.99` before submission, preventing insufficient-funds errors regardless of whether sells preceded the buys
+- **Intraday guard**: `python main.py guard` checks the circuit breaker without trading — run hourly via cron for intraday protection
 - **PDT protection**: tracks day trades and skips sells that would exceed the 3-day-trades-per-5-days limit for accounts under $25,000
 
 ### Profit Reinvestment
@@ -114,6 +116,7 @@ python main.py serve --host 0.0.0.0  # expose on network (e.g. Raspberry Pi)
 | `serve` | Start the web dashboard on `localhost:8000` |
 | `status` | Print portfolio status and current ETF scores to the terminal |
 | `snapshot` | Record current portfolio value without trading. Run daily via cron for chart data |
+| `guard` | Intraday circuit breaker check — liquidates if drawdown exceeds threshold. Run hourly via cron |
 
 ### Web Dashboard
 
@@ -207,6 +210,9 @@ crontab -e
 
 # Daily trading cycle (15:45 CET, Mon-Fri — 15 min after US open)
 45 15 * * 1-5 cd /home/pi/TraderBot && .venv/bin/python main.py run >> logs/cron.log 2>&1
+
+# Intraday circuit breaker (every hour 15:00–22:00 CET, Mon-Fri)
+0 15-22 * * 1-5 cd /home/pi/TraderBot && .venv/bin/python main.py guard >> logs/cron.log 2>&1
 
 # Daily portfolio snapshot (22:00 CET, Mon-Fri — after US close)
 0 22 * * 1-5 cd /home/pi/TraderBot && .venv/bin/python main.py snapshot >> logs/cron.log 2>&1

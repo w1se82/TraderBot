@@ -71,13 +71,6 @@
         <h3 class="text-sm font-medium text-gray-300 mb-3">Portfolio</h3>
         <div class="space-y-3">
           <div class="flex items-center justify-between gap-4">
-            <label class="text-sm text-gray-400 w-40 flex items-center gap-1">Initial capital ($)
-              <span class="tip" data-tip="The amount the bot invests on the first run. Any profits above this amount are automatically reinvested in subsequent cycles.">?</span>
-            </label>
-            <input id="s-max_capital" type="number" min="1" step="50"
-              class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-100 w-28 text-right focus:outline-none focus:border-emerald-500">
-          </div>
-          <div class="flex items-center justify-between gap-4">
             <label class="text-sm text-gray-400 w-40 flex items-center gap-1">Max holdings
               <span class="tip" data-tip="How many ETFs are held simultaneously. The bot always picks the top N highest-scoring ETFs from the universe.">?</span>
             </label>
@@ -160,13 +153,6 @@
               <span class="tip" data-tip="Checks whether the price is above the 50- and 200-day moving averages. Higher weight = only buy when the trend is clearly upward.">?</span>
             </label>
             <input id="s-trend_weight" type="number" min="0" max="1" step="0.05"
-              class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-100 w-28 text-right focus:outline-none focus:border-emerald-500">
-          </div>
-          <div class="flex items-center justify-between gap-4">
-            <label class="text-sm text-gray-400 w-40 flex items-center gap-1">Mean reversion
-              <span class="tip" data-tip="Based on RSI (14 days). Oversold ETFs (RSI &lt; 30) score higher. Higher weight = preference for ETFs that have temporarily pulled back.">?</span>
-            </label>
-            <input id="s-mean_reversion_weight" type="number" min="0" max="1" step="0.05"
               class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-100 w-28 text-right focus:outline-none focus:border-emerald-500">
           </div>
         </div>
@@ -680,7 +666,6 @@
         document.getElementById('s-momentum_weight').value = s.scoring.momentum_weight;
         document.getElementById('s-volatility_weight').value = s.scoring.volatility_weight;
         document.getElementById('s-trend_weight').value = s.scoring.trend_weight;
-        document.getElementById('s-mean_reversion_weight').value = s.scoring.mean_reversion_weight;
 
         paperTradingValue = s.broker.paper_trading;
         updatePaperTradingButton();
@@ -730,13 +715,11 @@
           max_holdings: parseInt(document.getElementById('s-max_holdings').value),
           sizing_method: document.getElementById('s-sizing_method').value,
           rebalance_threshold: parseFloat(document.getElementById('s-rebalance_threshold').value) / 100,
-          min_trade_value: 1.0,
         },
         scoring: {
           momentum_weight: parseFloat(document.getElementById('s-momentum_weight').value),
           volatility_weight: parseFloat(document.getElementById('s-volatility_weight').value),
           trend_weight: parseFloat(document.getElementById('s-trend_weight').value),
-          mean_reversion_weight: parseFloat(document.getElementById('s-mean_reversion_weight').value),
         },
         risk: {
           max_drawdown: parseFloat(document.getElementById('s-max_drawdown').value) / 100,

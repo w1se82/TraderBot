@@ -59,19 +59,24 @@ def rank_etfs(
         weights = factor_cfg["momentum"]["weights"]
 
         raw_momentum.append(momentum_score(close, windows, weights))
-        raw_vol.append(volatility_score(close, factor_cfg["volatility"]["window"]))
-        raw_trend.append(trend_score(
-            close, factor_cfg["trend"]["sma_short"], factor_cfg["trend"]["sma_long"]
+        raw_vol.append(volatility_score(
+            close,
+            factor_cfg["volatility"]["window_short"],
+            factor_cfg["volatility"]["window_long"],
         ))
+        raw_trend.append(trend_score(close, factor_cfg["trend"]["sma_long"]))
 
         # Collect raw (human-readable) values for the AI prompt
-        vol_pct = volatility_score(close, factor_cfg["volatility"]["window"])
+        # Annualized vol computed separately (not the relative ratio used for scoring)
+        _daily = close.pct_change().dropna()
+        _vol_ann = _daily.rolling(factor_cfg["volatility"]["window_long"]).std().iloc[-1] * np.sqrt(252)
+        vol_pct = float(_vol_ann) if not np.isnan(_vol_ann) else float("nan")
         rsi_val = rsi(close)
         ret_1m = float((close.iloc[-1] / close.iloc[-22] - 1) * 100) if len(close) >= 22 else float("nan")
         ret_3m = float((close.iloc[-1] / close.iloc[-63] - 1) * 100) if len(close) >= 63 else float("nan")
         ret_6m = float((close.iloc[-1] / close.iloc[-126] - 1) * 100) if len(close) >= 126 else float("nan")
         raw_values.append({
-            "vol_pct": round(vol_pct * 100, 1) if not np.isnan(vol_pct) else None,
+            "vol_pct": round(vol_pct * 100, 1) if not np.isnan(float(vol_pct)) else None,
             "rsi": round(rsi_val, 1) if not np.isnan(rsi_val) else None,
             "return_1m": round(ret_1m, 2) if not np.isnan(ret_1m) else None,
             "return_3m": round(ret_3m, 2) if not np.isnan(ret_3m) else None,

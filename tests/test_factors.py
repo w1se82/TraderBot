@@ -26,31 +26,32 @@ class TestMomentum:
 
 
 class TestVolatility:
-    def test_flat_low_vol(self, flat_close):
-        vol = volatility_score(flat_close, window=63)
-        assert 0 < vol < 0.10  # annualized vol under 10%
+    def test_returns_positive_ratio(self, uptrend_close):
+        ratio = volatility_score(uptrend_close, window_short=21, window_long=126)
+        assert ratio > 0
 
-    def test_uptrend_reasonable_vol(self, uptrend_close):
-        vol = volatility_score(uptrend_close, window=63)
-        assert 0 < vol < 0.50
+    def test_flat_ratio_near_one(self, flat_close):
+        # Consistently flat vol → recent ≈ historical → ratio near 1.0
+        ratio = volatility_score(flat_close, window_short=21, window_long=126)
+        assert 0.3 < ratio < 3.0
 
     def test_insufficient_data(self):
         short = pd.Series([100, 101])
-        assert np.isnan(volatility_score(short, window=63))
+        assert np.isnan(volatility_score(short, window_short=21, window_long=126))
 
 
 class TestTrend:
     def test_strong_uptrend(self, uptrend_close):
-        score = trend_score(uptrend_close, 50, 200)
+        score = trend_score(uptrend_close, sma_long=200)
         assert score > 0  # price above SMA200
 
     def test_strong_downtrend(self, downtrend_close):
-        score = trend_score(downtrend_close, 50, 200)
+        score = trend_score(downtrend_close, sma_long=200)
         assert score < 0  # price below SMA200
 
     def test_insufficient_data(self):
         short = pd.Series(range(100))
-        assert np.isnan(trend_score(short, 50, 200))
+        assert np.isnan(trend_score(short, sma_long=200))
 
 
 class TestRSI:

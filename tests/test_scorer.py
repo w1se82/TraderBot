@@ -4,13 +4,13 @@ from src.core.scorer import ScoredETF, _percentile_rank, rank_etfs
 SAMPLE_CONFIG = {
     "factors": {
         "momentum": {"windows": [21, 63, 126], "weights": [0.33, 0.33, 0.34]},
-        "volatility": {"window": 63},
-        "trend": {"sma_short": 50, "sma_long": 200},
+        "volatility": {"window_short": 21, "window_long": 126},
+        "trend": {"sma_long": 200},
     },
     "scoring": {
-        "momentum_weight": 0.40,
+        "momentum_weight": 0.30,
         "volatility_weight": 0.30,
-        "trend_weight": 0.30,
+        "trend_weight": 0.40,
     },
     "portfolio": {"max_holdings": 2},
 }

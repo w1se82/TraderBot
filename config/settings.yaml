@@ -1,7 +1,5 @@
 etfs:
 - SPY
-- QQQ
-- VTI
 - VEA
 - VWO
 - TLT
@@ -10,12 +8,11 @@ etfs:
 - LQD
 - DBC
 portfolio:
-  initial_capital: 500
   max_capital: 500
   max_holdings: 3
   sizing_method: score_proportional
-  rebalance_threshold: 0.05
-  min_trade_value: 1
+  rebalance_threshold: 0.08
+  min_trade_value: 25
   min_hold_days: 5
 factors:
   momentum:
@@ -28,14 +25,14 @@ factors:
     - 0.33
     - 0.34
   volatility:
-    window: 63
+    window_short: 21
+    window_long: 126
   trend:
-    sma_short: 50
     sma_long: 200
 scoring:
-  momentum_weight: 0.40
+  momentum_weight: 0.30
   volatility_weight: 0.30
-  trend_weight: 0.30
+  trend_weight: 0.40
 risk:
   max_drawdown: 0.15
   cooldown_days: 5
