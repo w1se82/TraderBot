@@ -657,7 +657,6 @@
         const res = await fetch('/api/settings');
         const s = await res.json();
 
-        document.getElementById('s-max_capital').value = s.portfolio.max_capital;
         document.getElementById('s-max_holdings').value = s.portfolio.max_holdings;
         document.getElementById('s-sizing_method').value = s.portfolio.sizing_method;
         document.getElementById('s-rebalance_threshold').value = (s.portfolio.rebalance_threshold * 100).toFixed(0);
@@ -711,7 +710,6 @@
       const body = {
         etfs: activeEtfs,
         portfolio: {
-          max_capital: parseFloat(document.getElementById('s-max_capital').value),
           max_holdings: parseInt(document.getElementById('s-max_holdings').value),
           sizing_method: document.getElementById('s-sizing_method').value,
           rebalance_threshold: parseFloat(document.getElementById('s-rebalance_threshold').value) / 100,
