@@ -39,6 +39,7 @@ Configurable via the dashboard or `settings.yaml`. Default set:
 - **Cooldown**: stays in cash for N days (default 5) after a trip, then resets
 - **Hold protection**: prevents replacing a position held less than `min_hold_days` (default 5), avoiding score-noise-driven churn
 - **Rebalance threshold**: prevents unnecessary small trades
+- **Buying power cap**: buy notionals are always capped to `buying_power × 0.99` before submission, preventing insufficient-funds errors regardless of whether sells preceded the buys
 - **PDT protection**: tracks day trades and skips sells that would exceed the 3-day-trades-per-5-days limit for accounts under $25,000
 
 ### Profit Reinvestment
@@ -118,12 +119,12 @@ python main.py serve --host 0.0.0.0  # expose on network (e.g. Raspberry Pi)
 
 Open `http://localhost:8000` after starting `serve`. Features:
 
-- **Account overview** — budget, cash, max capital, paper/live mode
+- **Account overview** — budget, cash, paper/live mode
 - **Risk status** — circuit breaker state, current drawdown with progress bar, peak equity
 - **Portfolio performance chart** — interactive chart with period selector (1W / 1M / 3M / 1Y / ALL), gradient fill, and detailed tooltips showing P&L per period
 - **Current positions** — ticker, market value, and portfolio weight
-- **Run Analysis** — scores all ETFs, fetches macro indicators, and streams an AI-powered analysis with live market news. Does **not** execute trades
-- **Execute Trading Cycle** — runs the full cycle and streams a live order log. Confirms before proceeding
+- **AI analysis** — runs automatically on page load: scores all ETFs, fetches macro indicators, and streams an AI-powered analysis with live market news
+- **Execute button** — top-right header; runs the full trading cycle and streams a live order log
 - **ETF scores table** — all ETFs ranked with factor breakdowns (selected highlighted, rejected dimmed)
 - **Settings panel** — configure portfolio, risk, scoring weights, ETF universe, and paper/live mode directly from the dashboard
 
@@ -143,7 +144,7 @@ To build up chart history, schedule a daily snapshot via cron:
 All settings are in `config/settings.yaml` and can be edited via the web dashboard:
 
 - **ETF universe** — which ETFs the bot can select from
-- **Portfolio** — max capital, max holdings, sizing method (equal weight / score proportional), rebalance threshold
+- **Portfolio** — max holdings, sizing method (equal weight / score proportional), rebalance threshold, min hold days
 - **Scoring weights** — relative importance of each factor (should sum to 1.0)
 - **Factor parameters** — momentum windows, volatility window, SMA periods
 - **Risk** — max drawdown threshold, cooldown days
