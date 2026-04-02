@@ -6,17 +6,11 @@ SAMPLE_CONFIG = {
         "momentum": {"windows": [21, 63, 126], "weights": [0.33, 0.33, 0.34]},
         "volatility": {"window": 63},
         "trend": {"sma_short": 50, "sma_long": 200},
-        "mean_reversion": {
-            "rsi_period": 14,
-            "oversold_threshold": 30,
-            "overbought_threshold": 70,
-        },
     },
     "scoring": {
-        "momentum_weight": 0.35,
-        "volatility_weight": 0.25,
-        "trend_weight": 0.25,
-        "mean_reversion_weight": 0.15,
+        "momentum_weight": 0.40,
+        "volatility_weight": 0.30,
+        "trend_weight": 0.30,
     },
     "portfolio": {"max_holdings": 2},
 }
@@ -38,21 +32,21 @@ class TestPercentileRank:
 
 class TestRankETFs:
     def test_returns_max_holdings(self, sample_universe):
-        result = rank_etfs(sample_universe, SAMPLE_CONFIG)
-        assert len(result) == 2
+        selected, _ = rank_etfs(sample_universe, SAMPLE_CONFIG)
+        assert len(selected) == 2
 
     def test_returns_scored_etfs(self, sample_universe):
-        result = rank_etfs(sample_universe, SAMPLE_CONFIG)
-        for etf in result:
+        selected, _ = rank_etfs(sample_universe, SAMPLE_CONFIG)
+        for etf in selected:
             assert isinstance(etf, ScoredETF)
             assert 0 <= etf.composite <= 1
 
     def test_sorted_descending(self, sample_universe):
-        result = rank_etfs(sample_universe, SAMPLE_CONFIG)
-        assert result[0].composite >= result[1].composite
+        selected, _ = rank_etfs(sample_universe, SAMPLE_CONFIG)
+        assert selected[0].composite >= selected[1].composite
 
     def test_uptrend_beats_downtrend(self, sample_universe):
         config = {**SAMPLE_CONFIG, "portfolio": {"max_holdings": 5}}
-        result = rank_etfs(sample_universe, config)
-        tickers = [r.ticker for r in result]
+        selected, _ = rank_etfs(sample_universe, config)
+        tickers = [r.ticker for r in selected]
         assert tickers.index("UP") < tickers.index("DOWN")

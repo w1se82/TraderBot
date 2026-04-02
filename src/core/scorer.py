@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 
 from src.core.factors import (
-    mean_reversion_score,
     momentum_score,
     rsi,
     trend_score,
@@ -51,7 +50,7 @@ def rank_etfs(
     score_cfg = config["scoring"]
 
     tickers = list(price_data.keys())
-    raw_momentum, raw_vol, raw_trend, raw_mr = [], [], [], []
+    raw_momentum, raw_vol, raw_trend = [], [], []
     raw_values: list[dict] = []
 
     for ticker in tickers:
@@ -64,16 +63,10 @@ def rank_etfs(
         raw_trend.append(trend_score(
             close, factor_cfg["trend"]["sma_short"], factor_cfg["trend"]["sma_long"]
         ))
-        raw_mr.append(mean_reversion_score(
-            close,
-            factor_cfg["mean_reversion"]["rsi_period"],
-            factor_cfg["mean_reversion"]["oversold_threshold"],
-            factor_cfg["mean_reversion"]["overbought_threshold"],
-        ))
 
         # Collect raw (human-readable) values for the AI prompt
         vol_pct = volatility_score(close, factor_cfg["volatility"]["window"])
-        rsi_val = rsi(close, factor_cfg["mean_reversion"]["rsi_period"])
+        rsi_val = rsi(close)
         ret_1m = float((close.iloc[-1] / close.iloc[-22] - 1) * 100) if len(close) >= 22 else float("nan")
         ret_3m = float((close.iloc[-1] / close.iloc[-63] - 1) * 100) if len(close) >= 63 else float("nan")
         ret_6m = float((close.iloc[-1] / close.iloc[-126] - 1) * 100) if len(close) >= 126 else float("nan")
@@ -87,14 +80,14 @@ def rank_etfs(
 
     mom_ranked = _percentile_rank(raw_momentum)
     vol_ranked = [1.0 - r if not np.isnan(r) else np.nan for r in _percentile_rank(raw_vol)]
+    trend_ranked = _percentile_rank(raw_trend)
 
     results = []
     for i, ticker in enumerate(tickers):
         factors = {
             "momentum": mom_ranked[i],
             "volatility": vol_ranked[i],
-            "trend": raw_trend[i],
-            "mean_reversion": raw_mr[i],
+            "trend": trend_ranked[i],
         }
 
         if any(np.isnan(v) for v in factors.values()):
@@ -105,7 +98,6 @@ def rank_etfs(
             score_cfg["momentum_weight"] * factors["momentum"]
             + score_cfg["volatility_weight"] * factors["volatility"]
             + score_cfg["trend_weight"] * factors["trend"]
-            + score_cfg["mean_reversion_weight"] * factors["mean_reversion"]
         )
 
         results.append(ScoredETF(
@@ -127,7 +119,6 @@ def rank_etfs(
             f"  {r.ticker:5s}  mom={r.factors['momentum']:.2f}  "
             f"vol={r.factors['volatility']:.2f}  "
             f"trend={r.factors['trend']:.2f}  "
-            f"mr={r.factors['mean_reversion']:.2f}  "
             f"composite={r.composite:.3f}{marker}"
         )
 

@@ -6,6 +6,9 @@ etfs:
 - VWO
 - TLT
 - GLD
+- IEF
+- LQD
+- DBC
 portfolio:
   initial_capital: 500
   max_capital: 500
@@ -13,6 +16,7 @@ portfolio:
   sizing_method: score_proportional
   rebalance_threshold: 0.05
   min_trade_value: 1
+  min_hold_days: 5
 factors:
   momentum:
     windows:
@@ -28,15 +32,10 @@ factors:
   trend:
     sma_short: 50
     sma_long: 200
-  mean_reversion:
-    rsi_period: 14
-    oversold_threshold: 30
-    overbought_threshold: 70
 scoring:
-  momentum_weight: 0.35
-  volatility_weight: 0.25
-  trend_weight: 0.25
-  mean_reversion_weight: 0.15
+  momentum_weight: 0.40
+  volatility_weight: 0.30
+  trend_weight: 0.30
 risk:
   max_drawdown: 0.15
   cooldown_days: 5

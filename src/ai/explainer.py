@@ -22,7 +22,6 @@ def build_prompt(
             f"momentum={etf.factors['momentum']:.2f} | "
             f"volatility={etf.factors['volatility']:.2f} | "
             f"trend={etf.factors['trend']:.2f} | "
-            f"mean_reversion={etf.factors['mean_reversion']:.2f} | "
             f"RSI={r.get('rsi', 'n/a')} | "
             f"ann.vol={r.get('vol_pct', 'n/a')}% | "
             f"1m={r.get('return_1m', 'n/a'):+.1f}% | "
@@ -41,7 +40,6 @@ def build_prompt(
             f"momentum={etf.factors['momentum']:.2f} | "
             f"volatility={etf.factors['volatility']:.2f} | "
             f"trend={etf.factors['trend']:.2f} | "
-            f"mean_reversion={etf.factors['mean_reversion']:.2f} | "
             f"RSI={r.get('rsi', 'n/a')} | "
             f"ann.vol={r.get('vol_pct', 'n/a')}% | "
             f"1m={r.get('return_1m', 'n/a'):+.1f}% | "
@@ -90,11 +88,10 @@ Before writing your analysis, use WebSearch to find 1–2 current news items rel
 **Full ETF ranking (all {len(all_etfs)} scored):**
 {chr(10).join(all_lines) if all_lines else "No ETFs scored"}
 
-**Factor legend (normalised 0–1):**
+**Factor legend (normalised 0–1 via cross-sectional percentile rank):**
 - momentum: percentile rank of weighted return (1m/3m/6m) — high = strong upward trend
-- volatility: inverted percentile rank — high = low volatility (defensive profile)
-- trend (0/0.5/1): price vs SMA50/SMA200 — 1.0 = above both moving averages
-- mean_reversion: RSI-based — high = oversold (potential buying opportunity)
+- volatility: inverted percentile rank of annualised vol — high = low volatility (defensive profile)
+- trend: percentile rank of (price / SMA200 − 1) — high = furthest above long-term average
 
 **Generated orders:**
 {chr(10).join(order_lines) if order_lines else "No orders — positions already balanced"}

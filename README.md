@@ -1,19 +1,20 @@
 # TraderBot
 
-Automated multi-factor ETF trading bot. Scores a universe of US-listed ETFs daily on four factors, selects the top performers, and rebalances via Alpaca. Profits are automatically reinvested. Designed as a fire & forget system running on a Raspberry Pi.
+Automated multi-factor ETF trading bot. Scores a universe of US-listed ETFs daily on three factors, selects the top performers, and rebalances via Alpaca. Profits are automatically reinvested. Designed as a fire & forget system running on a Raspberry Pi.
 
 ## Strategy
 
-The bot ranks ETFs based on four configurable factors:
+The bot ranks ETFs based on three configurable factors. All factors are cross-sectionally percentile-ranked before scoring, so the composite is always a fair 0–1 comparison across the universe.
 
 | Factor | Default Weight | What it measures |
 |--------|---------------|-----------------|
-| Momentum | 35% | Weighted average of 1m, 3m, and 6m returns |
-| Volatility | 25% | 3-month annualized vol (lower = better) |
-| Trend | 25% | Price vs SMA50/SMA200 |
-| Mean Reversion | 15% | RSI(14) — buy signal when oversold |
+| Momentum | 40% | Weighted average of 1m, 3m, and 6m returns |
+| Volatility | 30% | 3-month annualized vol (lower = better) |
+| Trend | 30% | Distance of price above/below the 200-day SMA |
 
-The top N ETFs (default 3) are held using either equal weight or score-proportional sizing. Rebalancing only occurs when a position drifts more than the configured threshold (default 5%) from its target.
+The top N ETFs (default 3) are held using score-proportional sizing. Rebalancing only occurs when a position drifts more than the configured threshold (default 5%) from its target.
+
+A **hold protection** rule prevents replacing a position that was acquired less than `min_hold_days` (default 5) ago, avoiding daily churn when scores between ETFs are close.
 
 ### ETF Universe
 
@@ -36,6 +37,7 @@ Configurable via the dashboard or `settings.yaml`. Default set:
 
 - **Drawdown circuit breaker**: liquidates all positions if the portfolio drops more than the configured threshold (default 15%) from its peak
 - **Cooldown**: stays in cash for N days (default 5) after a trip, then resets
+- **Hold protection**: prevents replacing a position held less than `min_hold_days` (default 5), avoiding score-noise-driven churn
 - **Rebalance threshold**: prevents unnecessary small trades
 - **PDT protection**: tracks day trades and skips sells that would exceed the 3-day-trades-per-5-days limit for accounts under $25,000
 
@@ -61,7 +63,7 @@ The Claude CLI must be installed and available in `PATH`. Claude Code authentica
 15:45 CET (15 min after US market open)
   1. Fetch 252 days of OHLCV data via yfinance
   2. Check circuit breaker (equity vs peak)
-  3. Score all ETFs on 4 factors
+  3. Score all ETFs on 3 factors
   4. Select top N, compute target allocation
   5. Compare with current positions
   6. Check PDT limit before executing sells
@@ -143,7 +145,7 @@ All settings are in `config/settings.yaml` and can be edited via the web dashboa
 - **ETF universe** — which ETFs the bot can select from
 - **Portfolio** — max capital, max holdings, sizing method (equal weight / score proportional), rebalance threshold
 - **Scoring weights** — relative importance of each factor (should sum to 1.0)
-- **Factor parameters** — momentum windows, volatility window, SMA periods, RSI thresholds
+- **Factor parameters** — momentum windows, volatility window, SMA periods
 - **Risk** — max drawdown threshold, cooldown days
 - **Broker** — paper/live trading toggle
 
@@ -156,7 +158,7 @@ TraderBot/
 ├── src/
 │   ├── config.py              # YAML + env var loading
 │   ├── core/
-│   │   ├── factors.py         # Momentum, vol, trend, RSI
+│   │   ├── factors.py         # Momentum, volatility, trend
 │   │   ├── scorer.py          # Factor combination, ranking, raw values
 │   │   ├── portfolio.py       # Position sizing, orders, daily snapshots
 │   │   └── risk.py            # Drawdown circuit breaker
@@ -172,10 +174,10 @@ TraderBot/
 │   │       └── index.html     # Web dashboard (Tailwind + Chart.js)
 │   └── cli/
 │       └── __init__.py        # Typer CLI with interactive menu
-├── tests/                     # Unit tests (35 tests)
+├── tests/                     # Unit tests (33 tests)
 ├── config/
 │   └── settings.yaml          # All configuration
-├── logs/                      # Runtime logs, trade history, portfolio snapshots
+├── logs/                      # Runtime logs, trade history, portfolio snapshots, hold state
 ├── .env                       # API keys (not in git)
 ├── requirements.txt
 └── main.py                    # Entry point

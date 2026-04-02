@@ -22,19 +22,17 @@ def volatility_score(close: pd.Series, window: int = 63) -> float:
 
 
 def trend_score(close: pd.Series, sma_short: int = 50, sma_long: int = 200) -> float:
+    """Returns continuous trend strength: how far price sits above/below the long-term SMA.
+
+    Raw return value (positive = above SMA200, negative = below). Caller is
+    responsible for cross-sectional percentile ranking before use in scoring.
+    """
     if len(close) < sma_long:
         return np.nan
 
     price = close.iloc[-1]
-    sma_s = close.rolling(sma_short).mean().iloc[-1]
     sma_l = close.rolling(sma_long).mean().iloc[-1]
-
-    if price > sma_s and price > sma_l:
-        return 1.0
-    elif price > sma_l:
-        return 0.5
-    else:
-        return 0.0
+    return (price / sma_l) - 1
 
 
 def rsi(close: pd.Series, period: int = 14) -> float:
@@ -53,23 +51,3 @@ def rsi(close: pd.Series, period: int = 14) -> float:
 
     rs = avg_gain / avg_loss
     return 100 - (100 / (1 + rs))
-
-
-def mean_reversion_score(
-    close: pd.Series,
-    rsi_period: int = 14,
-    oversold: float = 30,
-    overbought: float = 70,
-) -> float:
-    rsi_val = rsi(close, rsi_period)
-    if np.isnan(rsi_val):
-        return np.nan
-
-    if rsi_val < oversold:
-        return 1.0
-    elif rsi_val < 45:
-        return 0.5
-    elif rsi_val > overbought:
-        return 0.0
-    else:
-        return 0.25

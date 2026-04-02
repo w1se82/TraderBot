@@ -3,7 +3,6 @@ import pandas as pd
 import pytest
 
 from src.core.factors import (
-    mean_reversion_score,
     momentum_score,
     rsi,
     trend_score,
@@ -43,11 +42,11 @@ class TestVolatility:
 class TestTrend:
     def test_strong_uptrend(self, uptrend_close):
         score = trend_score(uptrend_close, 50, 200)
-        assert score == 1.0
+        assert score > 0  # price above SMA200
 
     def test_strong_downtrend(self, downtrend_close):
         score = trend_score(downtrend_close, 50, 200)
-        assert score == 0.0
+        assert score < 0  # price below SMA200
 
     def test_insufficient_data(self):
         short = pd.Series(range(100))
@@ -70,13 +69,3 @@ class TestRSI:
         assert val < 30  # oversold
 
 
-class TestMeanReversion:
-    def test_oversold(self):
-        prices = pd.Series(np.linspace(200, 100, 30))
-        score = mean_reversion_score(prices)
-        assert score == 1.0
-
-    def test_overbought(self):
-        prices = pd.Series(np.linspace(100, 200, 30))
-        score = mean_reversion_score(prices)
-        assert score == 0.0
