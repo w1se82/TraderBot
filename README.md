@@ -46,7 +46,7 @@ The web dashboard includes an AI-powered analysis step driven by the **Claude Co
 
 The full ranking of all ETFs (selected and rejected) is passed to the prompt so Claude can explain the relative comparison explicitly.
 
-The Claude CLI must be installed and available in `PATH`. No `ANTHROPIC_API_KEY` is required in `.env` — Claude Code authenticates independently.
+The Claude CLI must be installed and available in `PATH`. Claude Code authenticates independently — no additional API keys are needed.
 
 ## Daily Flow
 
@@ -75,7 +75,6 @@ pip install -r requirements.txt
 # Configure API keys
 cp .env.example .env
 # Fill in your Alpaca API keys in .env
-# ANTHROPIC_API_KEY is not needed — the dashboard uses the locally installed Claude Code CLI
 ```
 
 ## Usage
