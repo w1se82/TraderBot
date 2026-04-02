@@ -1,21 +1,23 @@
 # TraderBot
 
-Automated multi-factor ETF trading bot. Scores a universe of US-listed ETFs daily on four factors, selects the top 3, and rebalances via Alpaca. Designed as a fire & forget system running on a Raspberry Pi.
+Automated multi-factor ETF trading bot. Scores a universe of US-listed ETFs daily on four factors, selects the top performers, and rebalances via Alpaca. Profits are automatically reinvested. Designed as a fire & forget system running on a Raspberry Pi.
 
 ## Strategy
 
-The bot ranks ETFs based on four factors:
+The bot ranks ETFs based on four configurable factors:
 
-| Factor | Weight | What it measures |
-|--------|--------|-----------------|
+| Factor | Default Weight | What it measures |
+|--------|---------------|-----------------|
 | Momentum | 35% | Weighted average of 1m, 3m, and 6m returns |
 | Volatility | 25% | 3-month annualized vol (lower = better) |
 | Trend | 25% | Price vs SMA50/SMA200 |
 | Mean Reversion | 15% | RSI(14) — buy signal when oversold |
 
-The top 3 ETFs are held in equal weight (~33% per position). Rebalancing only occurs when a position drifts more than 5% from its target.
+The top N ETFs (default 3) are held using either equal weight or score-proportional sizing. Rebalancing only occurs when a position drifts more than the configured threshold (default 5%) from its target.
 
 ### ETF Universe
+
+Configurable via the dashboard or `settings.yaml`. Default set:
 
 | Ticker | Description |
 |--------|------------|
@@ -26,13 +28,20 @@ The top 3 ETFs are held in equal weight (~33% per position). Rebalancing only oc
 | VWO | Emerging Markets |
 | TLT | US Treasuries (long-term) |
 | GLD | Gold |
+| IEF | US Treasuries (mid-term) |
+| LQD | Corporate Bonds |
+| DBC | Commodities |
 
 ### Risk Management
 
-- **Drawdown circuit breaker**: liquidates all positions if the portfolio drops more than 15% from its peak
-- **Cooldown**: stays in cash for 5 days after a trip, then resets
+- **Drawdown circuit breaker**: liquidates all positions if the portfolio drops more than the configured threshold (default 15%) from its peak
+- **Cooldown**: stays in cash for N days (default 5) after a trip, then resets
 - **Rebalance threshold**: prevents unnecessary small trades
-- **PDT protection**: tracks day trades (buy + sell same ticker same day) and skips sells that would exceed the 3-day-trades-per-5-days limit for accounts under $25,000
+- **PDT protection**: tracks day trades and skips sells that would exceed the 3-day-trades-per-5-days limit for accounts under $25,000
+
+### Profit Reinvestment
+
+The bot uses the full account equity (positions + cash + unrealized gains) as the budget for each cycle. Any profits are automatically reinvested in the next rebalance.
 
 ## AI Analysis
 
@@ -44,8 +53,6 @@ The web dashboard includes an AI-powered analysis step driven by the **Claude Co
 - **Risk state** context: current drawdown and circuit breaker status
 - Any risks or points of attention for the period ahead
 
-The full ranking of all ETFs (selected and rejected) is passed to the prompt so Claude can explain the relative comparison explicitly.
-
 The Claude CLI must be installed and available in `PATH`. Claude Code authenticates independently — no additional API keys are needed.
 
 ## Daily Flow
@@ -55,11 +62,12 @@ The Claude CLI must be installed and available in `PATH`. Claude Code authentica
   1. Fetch 252 days of OHLCV data via yfinance
   2. Check circuit breaker (equity vs peak)
   3. Score all ETFs on 4 factors
-  4. Select top 3, compute target allocation
+  4. Select top N, compute target allocation
   5. Compare with current positions
   6. Check PDT limit before executing sells
   7. Generate and execute orders via Alpaca
-  8. Log everything
+  8. Record daily portfolio snapshot
+  9. Log everything
 ```
 
 ## Installation
@@ -82,31 +90,62 @@ cp .env.example .env
 ```bash
 # Interactive menu
 python main.py
-#   1. run    — execute daily trading cycle
-#   2. serve  — start web dashboard
-#   3. status — show portfolio status
+#   1. run      — execute daily trading cycle
+#   2. serve    — start web dashboard
+#   3. status   — show portfolio status
+#   4. snapshot — record portfolio value
 
 # Or pass a command directly
 python main.py run
 python main.py status
-python main.py serve    # dashboard at http://localhost:8000
+python main.py snapshot
+python main.py serve         # dashboard at http://localhost:8000
+python main.py serve --host 0.0.0.0  # expose on network (e.g. Raspberry Pi)
 ```
+
+### Commands
+
+| Command | Description |
+|---------|------------|
+| `run` | Execute the full trading cycle (score, rebalance, trade) |
+| `serve` | Start the web dashboard on `localhost:8000` |
+| `status` | Print portfolio status and current ETF scores to the terminal |
+| `snapshot` | Record current portfolio value without trading. Run daily via cron for chart data |
 
 ### Web Dashboard
 
-Open `http://localhost:8000` after starting `serve`. The dashboard offers two actions:
+Open `http://localhost:8000` after starting `serve`. Features:
 
-- **Run Analysis** — scores all ETFs, fetches macro indicators, and streams an AI-powered analysis with live market news. Does **not** execute trades.
-- **Execute Trading Cycle** — runs the full cycle (circuit breaker check → scoring → rebalance → order execution) and streams a live order feed. Confirms before proceeding.
+- **Account overview** — budget, cash, max capital, paper/live mode
+- **Risk status** — circuit breaker state, current drawdown with progress bar, peak equity
+- **Portfolio performance chart** — interactive chart with period selector (1W / 1M / 3M / 1Y / ALL), gradient fill, and detailed tooltips showing P&L per period
+- **Current positions** — ticker, market value, and portfolio weight
+- **Run Analysis** — scores all ETFs, fetches macro indicators, and streams an AI-powered analysis with live market news. Does **not** execute trades
+- **Execute Trading Cycle** — runs the full cycle and streams a live order log. Confirms before proceeding
+- **ETF scores table** — all ETFs ranked with factor breakdowns (selected highlighted, rejected dimmed)
+- **Settings panel** — configure portfolio, risk, scoring weights, ETF universe, and paper/live mode directly from the dashboard
+
+### Portfolio Snapshots
+
+The bot records one portfolio value snapshot per day. Multiple runs on the same day overwrite the earlier entry, so the chart always shows one data point per day.
+
+To build up chart history, schedule a daily snapshot via cron:
+
+```bash
+# Record portfolio value daily at 22:00 CET (after US market close), Mon-Fri
+0 22 * * 1-5 cd /home/pi/TraderBot && .venv/bin/python main.py snapshot >> logs/cron.log 2>&1
+```
 
 ## Configuration
 
-All settings are in `config/settings.yaml`:
-- ETF universe
-- Factor parameters (windows, weights)
-- Portfolio settings (max holdings, rebalance threshold)
-- Risk management (max drawdown, cooldown)
-- Broker (paper/live toggle)
+All settings are in `config/settings.yaml` and can be edited via the web dashboard:
+
+- **ETF universe** — which ETFs the bot can select from
+- **Portfolio** — max capital, max holdings, sizing method (equal weight / score proportional), rebalance threshold
+- **Scoring weights** — relative importance of each factor (should sum to 1.0)
+- **Factor parameters** — momentum windows, volatility window, SMA periods, RSI thresholds
+- **Risk** — max drawdown threshold, cooldown days
+- **Broker** — paper/live trading toggle
 
 API keys are stored in `.env` (never committed to git).
 
@@ -119,7 +158,7 @@ TraderBot/
 │   ├── core/
 │   │   ├── factors.py         # Momentum, vol, trend, RSI
 │   │   ├── scorer.py          # Factor combination, ranking, raw values
-│   │   ├── portfolio.py       # Position sizing and orders
+│   │   ├── portfolio.py       # Position sizing, orders, daily snapshots
 │   │   └── risk.py            # Drawdown circuit breaker
 │   ├── data/
 │   │   └── market_data.py     # yfinance wrapper + macro snapshot (VIX, yields, DXY)
@@ -128,15 +167,15 @@ TraderBot/
 │   ├── ai/
 │   │   └── explainer.py       # Claude prompt builder (macro + full ranking + raw values)
 │   ├── api/
-│   │   ├── __init__.py        # FastAPI: status, analyze (SSE), run (SSE)
+│   │   ├── __init__.py        # FastAPI: status, analyze (SSE), run (SSE), settings, snapshot
 │   │   └── static/
-│   │       └── index.html     # Web dashboard
+│   │       └── index.html     # Web dashboard (Tailwind + Chart.js)
 │   └── cli/
 │       └── __init__.py        # Typer CLI with interactive menu
 ├── tests/                     # Unit tests (35 tests)
 ├── config/
 │   └── settings.yaml          # All configuration
-├── logs/                      # Runtime logs and trade history
+├── logs/                      # Runtime logs, trade history, portfolio snapshots
 ├── .env                       # API keys (not in git)
 ├── requirements.txt
 └── main.py                    # Entry point
@@ -155,15 +194,19 @@ All tests run on synthetic data — no API keys or network access needed.
 1. Run at least 60 trading days on paper trading
 2. Review the trade log in `logs/trades.csv`
 3. Test the circuit breaker
-4. Set `broker.paper_trading: false` in `settings.yaml`
+4. Set `broker.paper_trading: false` in `settings.yaml` (or toggle in the dashboard)
 5. Use live API keys in `.env`
 
 ## Raspberry Pi Deployment
 
 ```bash
-# Cron job (22:15 CET, Mon-Fri)
 crontab -e
-15 22 * * 1-5 cd /home/pi/TraderBot && .venv/bin/python main.py run >> logs/cron.log 2>&1
+
+# Daily trading cycle (15:45 CET, Mon-Fri — 15 min after US open)
+45 15 * * 1-5 cd /home/pi/TraderBot && .venv/bin/python main.py run >> logs/cron.log 2>&1
+
+# Daily portfolio snapshot (22:00 CET, Mon-Fri — after US close)
+0 22 * * 1-5 cd /home/pi/TraderBot && .venv/bin/python main.py snapshot >> logs/cron.log 2>&1
 ```
 
 ## Tech Stack
@@ -173,6 +216,7 @@ crontab -e
 - alpaca-trade-api (order execution)
 - pandas / numpy (calculations)
 - FastAPI + uvicorn (web dashboard)
+- Tailwind CSS + Chart.js (frontend)
 - Claude Code CLI (AI analysis, streamed via SSE)
 - typer (CLI)
 

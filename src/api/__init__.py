@@ -385,6 +385,22 @@ def save_settings(body: dict):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/api/snapshot")
+def take_snapshot():
+    """Record current portfolio value without trading."""
+    config = load_config()
+    broker = AlpacaBroker(
+        api_key=config["broker"]["api_key"],
+        secret_key=config["broker"]["secret_key"],
+        paper=config["broker"]["paper_trading"],
+    )
+    account = broker.get_account()
+    initial_capital = config["portfolio"].get("max_capital", account.equity)
+    budget = account.equity
+    record_snapshot(budget, initial_capital)
+    return {"ok": True, "portfolio_value": budget, "initial_capital": initial_capital}
+
+
 @app.get("/api/portfolio-history")
 def portfolio_history():
     import csv as csv_module

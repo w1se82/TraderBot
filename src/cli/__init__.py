@@ -21,12 +21,13 @@ def main(ctx: typer.Context):
 
     typer.echo("\n  TraderBot")
     typer.echo("  " + "─" * 20)
-    typer.echo("  1. run    — execute daily trading cycle")
-    typer.echo("  2. serve  — start web dashboard")
-    typer.echo("  3. status — show portfolio status")
+    typer.echo("  1. run      — execute daily trading cycle")
+    typer.echo("  2. serve    — start web dashboard")
+    typer.echo("  3. status   — show portfolio status")
+    typer.echo("  4. snapshot — record portfolio value")
     typer.echo()
 
-    choice = typer.prompt("  Choose [1/2/3]").strip()
+    choice = typer.prompt("  Choose [1/2/3/4]").strip()
 
     if choice in ("1", "run"):
         ctx.invoke(run)
@@ -34,6 +35,8 @@ def main(ctx: typer.Context):
         ctx.invoke(serve)
     elif choice in ("3", "status"):
         ctx.invoke(status)
+    elif choice in ("4", "snapshot"):
+        ctx.invoke(snapshot)
     else:
         typer.echo("Invalid choice.", err=True)
         raise typer.Exit(1)
@@ -132,13 +135,33 @@ def _run_cycle(config: dict) -> None:
 
 
 @app.command()
-def serve(host: str = "0.0.0.0", port: int = 8000):
+def serve(host: str = "127.0.0.1", port: int = 8000):
     """Start the web dashboard."""
     import uvicorn
     config = load_config()
     setup_logging(config)
     logger.info(f"Starting dashboard on http://{host}:{port}")
     uvicorn.run("src.api:app", host=host, port=port, reload=False)
+
+
+@app.command()
+def snapshot():
+    """Record current portfolio value (no trades). Run daily via cron."""
+    config = load_config()
+    setup_logging(config)
+
+    broker = AlpacaBroker(
+        api_key=config["broker"]["api_key"],
+        secret_key=config["broker"]["secret_key"],
+        paper=config["broker"]["paper_trading"],
+    )
+
+    account = broker.get_account()
+    initial_capital = config["portfolio"].get("max_capital", account.equity)
+    budget = account.equity
+
+    record_snapshot(budget, initial_capital)
+    typer.echo(f"Snapshot recorded: ${budget:.2f} (initial: ${initial_capital:.2f})")
 
 
 @app.command()

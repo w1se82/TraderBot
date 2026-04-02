@@ -1,27 +1,28 @@
-# ── ETF Universe ──────────────────────────────────
 etfs:
-  - SPY   # S&P 500
-  - QQQ   # Nasdaq 100
-  - VTI   # Total US Market
-  - VEA   # Developed ex-US
-  - VWO   # Emerging Markets
-  - TLT   # Long-term US Treasuries
-  - GLD   # Gold
-
-# ── Portfolio ─────────────────────────────────────
+- SPY
+- QQQ
+- VTI
+- VEA
+- VWO
+- TLT
+- GLD
 portfolio:
   initial_capital: 500
-  max_capital: 500  # bot uses at most this amount, even if the account balance is larger
+  max_capital: 500
   max_holdings: 3
-  sizing_method: equal_weight
+  sizing_method: score_proportional
   rebalance_threshold: 0.05
-  min_trade_value: 1.0
-
-# ── Factors ───────────────────────────────────────
+  min_trade_value: 1
 factors:
   momentum:
-    windows: [21, 63, 126]
-    weights: [0.33, 0.33, 0.34]
+    windows:
+    - 21
+    - 63
+    - 126
+    weights:
+    - 0.33
+    - 0.33
+    - 0.34
   volatility:
     window: 63
   trend:
@@ -31,32 +32,22 @@ factors:
     rsi_period: 14
     oversold_threshold: 30
     overbought_threshold: 70
-
-# ── Scoring weights (sum to 1.0) ─────────────────
 scoring:
   momentum_weight: 0.35
   volatility_weight: 0.25
   trend_weight: 0.25
   mean_reversion_weight: 0.15
-
-# ── Risk management ──────────────────────────────
 risk:
   max_drawdown: 0.15
   cooldown_days: 5
-
-# ── Broker ────────────────────────────────────────
 broker:
   name: alpaca
   paper_trading: true
-  base_url_paper: "https://paper-api.alpaca.markets"
-  base_url_live: "https://api.alpaca.markets"
-
-# ── Data ──────────────────────────────────────────
+  base_url_paper: https://paper-api.alpaca.markets
+  base_url_live: https://api.alpaca.markets
 data:
   provider: yfinance
   history_days: 252
-
-# ── Logging ───────────────────────────────────────
 logging:
   level: INFO
   file: logs/traderbot.log

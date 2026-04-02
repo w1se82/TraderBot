@@ -13,13 +13,21 @@ PORTFOLIO_HISTORY = Path(__file__).resolve().parent.parent.parent / "logs" / "po
 
 
 def record_snapshot(portfolio_value: float, initial_capital: float) -> None:
-    """Append a portfolio value snapshot to the history CSV."""
+    """Record one portfolio snapshot per day. Overwrites earlier entry for today."""
     PORTFOLIO_HISTORY.parent.mkdir(parents=True, exist_ok=True)
-    write_header = not PORTFOLIO_HISTORY.exists()
-    with open(PORTFOLIO_HISTORY, "a", newline="") as f:
+    today = datetime.now().date().isoformat()
+
+    rows = []
+    if PORTFOLIO_HISTORY.exists():
+        with open(PORTFOLIO_HISTORY, newline="") as f:
+            reader = csv.DictReader(f)
+            rows = [r for r in reader if not r["timestamp"].startswith(today)]
+
+    with open(PORTFOLIO_HISTORY, "w", newline="") as f:
         writer = csv.writer(f)
-        if write_header:
-            writer.writerow(["timestamp", "portfolio_value", "initial_capital"])
+        writer.writerow(["timestamp", "portfolio_value", "initial_capital"])
+        for r in rows:
+            writer.writerow([r["timestamp"], r["portfolio_value"], r["initial_capital"]])
         writer.writerow([datetime.now().isoformat(), f"{portfolio_value:.2f}", f"{initial_capital:.2f}"])
 
 
