@@ -211,6 +211,23 @@ All tests run on synthetic data — no API keys or network access needed.
 
 ## Raspberry Pi Deployment
 
+### Requirements
+
+| Component | Minimum | Recommended |
+|-----------|---------|-------------|
+| Board | Raspberry Pi 4 (2GB) | Raspberry Pi 5 (4GB) |
+| OS | Raspberry Pi OS Bookworm (64-bit) | Same |
+| Python | 3.11+ (included on Bookworm) | Same |
+| Storage | microSD 16GB | microSD 32GB+ |
+| Power supply | 15W USB-C (Pi 4) | 27W USB-C (Pi 5) |
+| Network | Wi-Fi or Ethernet | Ethernet (more stable) |
+
+Optional but recommended:
+- Case with passive/active cooling
+- Static IP configured in your router (for dashboard access)
+
+### Setup
+
 An automated setup script is included in `deploy/`:
 
 ```bash
