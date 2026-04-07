@@ -1,6 +1,6 @@
 # TraderBot
 
-Automated multi-factor ETF trading bot. Scores a universe of US-listed ETFs daily on three factors, selects the top performers, and rebalances via Alpaca. Profits are automatically reinvested. Designed as a fire & forget system running on a Raspberry Pi.
+Automated multi-factor ETF trading bot. Scores a universe of US-listed ETFs daily on three factors, selects the top performers, and rebalances via Alpaca. Idle cash is automatically swept back into holdings. Designed as a fire & forget system running on a Raspberry Pi.
 
 ## Strategy
 
@@ -12,7 +12,7 @@ The bot ranks ETFs based on three configurable factors. All factors are cross-se
 | Volatility | 30% | Ratio of 21-day vol to 126-day vol — rewards assets calmer than their own norm |
 | Trend | 40% | Distance of price above/below the 200-day SMA |
 
-The top N ETFs (default 3) are held using score-proportional sizing. Rebalancing only occurs when a position drifts more than the configured threshold (default 5%) from its target.
+The top N ETFs (default 3) are held using score-proportional sizing. Rebalancing only occurs when a position drifts more than the configured threshold (default 8%) from its target.
 
 A **hold protection** rule prevents replacing a position that was acquired less than `min_hold_days` (default 5) ago, avoiding daily churn when scores between ETFs are close.
 
@@ -20,18 +20,18 @@ A **hold protection** rule prevents replacing a position that was acquired less 
 
 Configurable via the dashboard or `settings.yaml`. Default set:
 
-| Ticker | Description |
-|--------|------------|
-| SPY | S&P 500 |
-| QQQ | Nasdaq 100 |
-| VTI | Total US Market |
-| VEA | Developed Markets ex-US |
-| VWO | Emerging Markets |
-| TLT | US Treasuries (long-term) |
-| GLD | Gold |
-| IEF | US Treasuries (mid-term) |
-| LQD | Corporate Bonds |
-| DBC | Commodities |
+| Ticker | Description | Default |
+|--------|------------|---------|
+| SPY | S&P 500 | On |
+| VEA | Developed Markets ex-US | On |
+| VWO | Emerging Markets | On |
+| TLT | US Treasuries (long-term) | On |
+| GLD | Gold | On |
+| IEF | US Treasuries (mid-term) | On |
+| LQD | Corporate Bonds | On |
+| DBC | Commodities | On |
+| QQQ | Nasdaq 100 | Off |
+| VTI | Total US Market | Off |
 
 ### Risk Management
 
@@ -39,14 +39,17 @@ Configurable via the dashboard or `settings.yaml`. Default set:
 - **Cooldown**: stays in cash for N days (default 5) after a trip, then resets
 - **Hold protection**: prevents replacing a position held less than `min_hold_days` (default 5), avoiding score-noise-driven churn
 - **Rebalance threshold**: 8% drift before rebalancing (prevents unnecessary small trades)
-- **Minimum trade value**: $25 — filters out sub-threshold order noise
+- **Minimum trade value**: $25 — filters out sub-threshold rebalance noise
+- **Alpaca $1 minimum**: buy orders below $1 are skipped instead of crashing
+- **Cash sweep**: after rebalancing, any remaining cash (> $3) is distributed proportionally across target holdings so capital stays fully deployed
 - **Buying power cap**: buy notionals are always capped to `buying_power × 0.99` before submission, preventing insufficient-funds errors regardless of whether sells preceded the buys
+- **Stale sell protection**: sell orders for positions that no longer exist on Alpaca are skipped gracefully (prevents crashes on repeated runs)
 - **Intraday guard**: `python main.py guard` checks the circuit breaker without trading — run hourly via cron for intraday protection
 - **PDT protection**: tracks day trades and skips sells that would exceed the 3-day-trades-per-5-days limit for accounts under $25,000
 
-### Profit Reinvestment
+### Capital Deployment
 
-The bot uses the full account equity (positions + cash + unrealized gains) as the budget for each cycle. Any profits are automatically reinvested in the next rebalance.
+The bot uses the full account equity (positions + cash + unrealized gains) as the budget for each cycle. After rebalancing, a **cash sweep** distributes any remaining idle cash (> $3) proportionally across target holdings, so capital stays nearly fully invested at all times.
 
 ## AI Analysis
 
@@ -63,16 +66,18 @@ The Claude CLI must be installed and available in `PATH`. Claude Code authentica
 ## Daily Flow
 
 ```
-15:45 CET (15 min after US market open)
-  1. Fetch 252 days of OHLCV data via yfinance
-  2. Check circuit breaker (equity vs peak)
-  3. Score all ETFs on 3 factors
-  4. Select top N, compute target allocation
-  5. Compare with current positions
-  6. Check PDT limit before executing sells
-  7. Generate and execute orders via Alpaca
-  8. Record daily portfolio snapshot
-  9. Log everything
+16:00 CET (30 min after US market open)
+  1. Record portfolio snapshot
+  2. Fetch 252 days of OHLCV data via yfinance
+  3. Check circuit breaker (equity vs peak)
+  4. Score all ETFs on 3 factors
+  5. Select top N, compute target allocation
+  6. Compare with current positions
+  7. Check PDT limit before executing sells
+  8. Generate rebalance orders
+  9. Sweep remaining cash into target holdings
+  10. Execute orders via Alpaca
+  11. Log everything
 ```
 
 ## Installation
@@ -135,12 +140,10 @@ Open `http://localhost:8000` after starting `serve`. Features:
 
 The bot records one portfolio value snapshot per day. Multiple runs on the same day overwrite the earlier entry, so the chart always shows one data point per day.
 
-To build up chart history, schedule a daily snapshot via cron:
-
-```bash
-# Record portfolio value daily at 22:00 CET (after US market close), Mon-Fri
-0 22 * * 1-5 cd /home/pi/TraderBot && .venv/bin/python main.py snapshot >> logs/cron.log 2>&1
-```
+Snapshots are recorded automatically by:
+- The `run` command (at the start of each cycle)
+- The web dashboard (on every status refresh)
+- The `snapshot` command (standalone, useful for cron)
 
 ## Configuration
 
@@ -181,6 +184,9 @@ TraderBot/
 ├── tests/                     # Unit tests (33 tests)
 ├── config/
 │   └── settings.yaml          # All configuration
+├── deploy/
+│   ├── setup-pi.sh            # Automated Raspberry Pi setup (venv, systemd, cron)
+│   └── DEPLOY.md              # Deployment guide
 ├── logs/                      # Runtime logs, trade history, portfolio snapshots, hold state
 ├── .env                       # API keys (not in git)
 ├── requirements.txt
@@ -205,18 +211,23 @@ All tests run on synthetic data — no API keys or network access needed.
 
 ## Raspberry Pi Deployment
 
+An automated setup script is included in `deploy/`:
+
 ```bash
-crontab -e
-
-# Daily trading cycle (15:45 CET, Mon-Fri — 15 min after US open)
-45 15 * * 1-5 cd /home/pi/TraderBot && .venv/bin/python main.py run >> logs/cron.log 2>&1
-
-# Intraday circuit breaker (every hour 15:00–22:00 CET, Mon-Fri)
-0 15-22 * * 1-5 cd /home/pi/TraderBot && .venv/bin/python main.py guard >> logs/cron.log 2>&1
-
-# Daily portfolio snapshot (22:00 CET, Mon-Fri — after US close)
-0 22 * * 1-5 cd /home/pi/TraderBot && .venv/bin/python main.py snapshot >> logs/cron.log 2>&1
+cd TraderBot/deploy
+chmod +x setup-pi.sh
+./setup-pi.sh
 ```
+
+This installs dependencies, creates a systemd service for the dashboard (auto-start on boot), and configures cron jobs:
+
+| Time | Days | Command | Description |
+|------|------|---------|-------------|
+| 16:00 CET | Mon-Fri | `run` | Daily rebalance (30 min after open) |
+| every 30 min 15:00-22:00 | Mon-Fri | `guard` | Circuit breaker check |
+| 22:30 CET | Mon-Fri | `snapshot` | Log portfolio value (after close) |
+
+See `deploy/DEPLOY.md` for the full guide.
 
 ## Tech Stack
 
