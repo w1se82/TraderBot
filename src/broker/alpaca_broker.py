@@ -69,6 +69,13 @@ class AlpacaBroker:
                 )
                 return None
 
+        if side == "sell":
+            try:
+                self.api.get_position(ticker)
+            except Exception:
+                logger.warning(f"No open position for {ticker}, skipping sell")
+                return None
+
         logger.info(f"Submitting {side} ${notional:.2f} of {ticker}")
 
         if side == "sell" and full_exit:
