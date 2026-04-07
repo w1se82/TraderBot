@@ -16,7 +16,7 @@ from src.ai.explainer import build_prompt
 from src.broker.alpaca_broker import AlpacaBroker
 from src.config import load_config
 from src.broker.alpaca_broker import AlpacaBroker
-from src.core.portfolio import compute_target_weights, generate_orders, needs_rebalance, record_snapshot
+from src.core.portfolio import Order, compute_target_weights, generate_orders, needs_rebalance, record_snapshot
 from src.core.risk import DrawdownMonitor
 from src.core.scorer import rank_etfs
 from src.data.market_data import fetch_prices, fetch_macro
@@ -115,6 +115,7 @@ def status():
         positions = broker.get_positions()
         initial_capital = config["portfolio"].get("max_capital", account.equity)
         budget = account.equity
+        record_snapshot(budget, initial_capital)
 
         risk_state = _load_risk_state()
         peak = risk_state.get("peak_equity", budget)
@@ -319,6 +320,26 @@ async def run_cycle():
             current_values, target_weights, budget, config["portfolio"]["min_trade_value"]
         )
 
+        # Sweep remaining cash into target holdings
+        expected_cash = budget - sum(current_values.values())
+        for o in orders:
+            if o.side == "sell":
+                expected_cash += o.notional
+            else:
+                expected_cash -= o.notional
+        if expected_cash > 3.0:
+            total_w = sum(target_weights.values())
+            for ticker, weight in target_weights.items():
+                topup = math.floor(expected_cash * (weight / total_w) * 100) / 100
+                if topup < 1.0:
+                    continue
+                existing = next((o for o in orders if o.ticker == ticker and o.side == "buy"), None)
+                if existing:
+                    existing.notional += topup
+                else:
+                    orders.append(Order(ticker=ticker, side="buy", notional=topup))
+            logger.info(f"Cash sweep: distributed ${expected_cash:.2f} idle cash across holdings")
+
         sells = [o for o in orders if o.side == "sell"]
         buys = [o for o in orders if o.side == "buy"]
 
@@ -346,6 +367,9 @@ async def run_cycle():
                     o.notional = math.floor(o.notional * scale * 100) / 100
 
         for order in buys:
+            if order.notional < 1.00:
+                logger.info(f"Skipping {order.ticker}: notional ${order.notional:.2f} below Alpaca $1 minimum")
+                continue
             try:
                 result = broker.submit_order(order.ticker, order.side, order.notional, order.full_exit)
                 if result:
