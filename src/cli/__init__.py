@@ -209,6 +209,9 @@ def _run_cycle(config: dict) -> None:
             for o in buys:
                 o.notional = math.floor(o.notional * scale * 100) / 100
     for order in buys:
+        if order.notional < 1.00:
+            logger.info(f"Skipping {order.ticker}: notional ${order.notional:.2f} below Alpaca $1 minimum")
+            continue
         broker.submit_order(order.ticker, order.side, order.notional, order.full_exit)
 
     # 11. Update hold state: register new buys, remove full exits
