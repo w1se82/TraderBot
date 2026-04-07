@@ -90,6 +90,8 @@ def generate_orders(
 
         if diff < 0:
             full_exit = target_values.get(ticker, 0.0) == 0.0
+            if not full_exit:
+                continue  # let winners run — only sell on full exit
             sells.append(Order(ticker=ticker, side="sell", notional=math.floor(abs(diff) * 100) / 100, full_exit=full_exit))
         else:
             buys.append(Order(ticker=ticker, side="buy", notional=math.floor(diff * 100) / 100))
