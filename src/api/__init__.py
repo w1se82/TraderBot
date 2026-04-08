@@ -113,7 +113,7 @@ def status():
         )
         account = broker.get_account()
         positions = broker.get_positions()
-        initial_capital = config["portfolio"].get("max_capital", account.equity)
+        initial_capital = config["portfolio"].get("initial_capital", account.equity)
         budget = account.equity
         record_snapshot(budget, initial_capital)
 
@@ -126,7 +126,7 @@ def status():
             "equity": round(account.equity, 2),
             "cash": round(account.cash, 2),
             "budget": round(budget, 2),
-            "max_capital": initial_capital,
+            "initial_capital": initial_capital,
             "paper_trading": config["broker"]["paper_trading"],
             "positions": [
                 {
@@ -168,7 +168,7 @@ async def analyze():
             )
             account = broker.get_account()
             positions = broker.get_positions()
-            initial_capital = config["portfolio"].get("max_capital", account.equity)
+            initial_capital = config["portfolio"].get("initial_capital", account.equity)
             invested = sum(p.market_value for p in positions.values())
             budget = account.equity
         except Exception:
@@ -261,7 +261,7 @@ async def run_cycle():
             )
             account = broker.get_account()
             positions = broker.get_positions()
-            initial_capital = config["portfolio"].get("max_capital", account.equity)
+            initial_capital = config["portfolio"].get("initial_capital", account.equity)
             invested = sum(p.market_value for p in positions.values())
             budget = account.equity
             record_snapshot(budget, initial_capital)
@@ -427,7 +427,7 @@ def take_snapshot():
         paper=config["broker"]["paper_trading"],
     )
     account = broker.get_account()
-    initial_capital = config["portfolio"].get("max_capital", account.equity)
+    initial_capital = config["portfolio"].get("initial_capital", account.equity)
     budget = account.equity
     record_snapshot(budget, initial_capital)
     return {"ok": True, "portfolio_value": budget, "initial_capital": initial_capital}

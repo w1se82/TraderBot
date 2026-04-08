@@ -8,7 +8,7 @@ etfs:
 - LQD
 - DBC
 portfolio:
-  max_capital: 500
+  initial_capital: 500
   max_holdings: 3
   sizing_method: score_proportional
   rebalance_threshold: 0.08

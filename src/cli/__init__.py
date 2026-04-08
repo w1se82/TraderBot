@@ -129,7 +129,7 @@ def _run_cycle(config: dict) -> None:
 
     # 2. Get account info and apply capital limit
     account = broker.get_account()
-    initial_capital = config["portfolio"].get("max_capital", account.equity)
+    initial_capital = config["portfolio"].get("initial_capital", account.equity)
     positions = broker.get_positions()
     budget = account.equity
     logger.info(
@@ -270,7 +270,7 @@ def snapshot():
     )
 
     account = broker.get_account()
-    initial_capital = config["portfolio"].get("max_capital", account.equity)
+    initial_capital = config["portfolio"].get("initial_capital", account.equity)
     budget = account.equity
 
     record_snapshot(budget, initial_capital)
