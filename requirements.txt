@@ -1,4 +1,4 @@
-yfinance~=0.2.58
+yfinance~=1.2.1
 alpaca-trade-api~=3.2.0
 fastapi~=0.135.3
 uvicorn~=0.42.0
